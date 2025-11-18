@@ -1,12 +1,12 @@
 import { Stack, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Image,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function SignupScreen() {
@@ -16,6 +16,55 @@ export default function SignupScreen() {
     cca2: "Np",
     callingCode: ["977"],
   });
+
+  // ----------------------------
+  // STATES FOR API
+  // ----------------------------
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [gender, setGender] = useState("");
+
+  // ----------------------------
+  // SIGNUP API FUNCTION
+  // ----------------------------
+  const handleSignup = async () => {
+    if (!name || !email || !password || !phone || !gender) {
+      alert("Please fill all fields");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:8084/api/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          name: name,
+          email: email,
+          password: password,
+          phoneNumber: phone,
+          gender: gender,
+        }),
+      });
+
+      const data = await response.text();
+
+      if (!response.ok) {
+        alert(data); 
+        return;
+      }
+
+      alert("Signup successful!");
+      router.push("/login");
+
+    } catch (error) {
+      alert("Network Error: " + error);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -31,8 +80,27 @@ export default function SignupScreen() {
       </Text>
 
       {/* Inputs */}
-      <TextInput placeholder="Name" style={styles.input} />
-      <TextInput placeholder="Email" style={styles.input} />
+      <TextInput
+        placeholder="Name"
+        style={styles.input}
+        value={name}
+        onChangeText={setName}
+      />
+
+      <TextInput
+        placeholder="Email"
+        style={styles.input}
+        value={email}
+        onChangeText={setEmail}
+      />
+
+      <TextInput
+        placeholder="Password"
+        secureTextEntry
+        style={styles.input}
+        value={password}
+        onChangeText={setPassword}
+      />
 
       {/* Phone */}
       <View style={styles.phoneRow}>
@@ -42,12 +110,19 @@ export default function SignupScreen() {
           placeholder="Your mobile number"
           style={styles.phoneInput}
           keyboardType="phone-pad"
+          value={phone}
+          onChangeText={setPhone}
         />
       </View>
 
       {/* Gender */}
-      <TouchableOpacity style={styles.dropdown}>
-        <Text style={{ color: "#777" }}>Gender</Text>
+      <TouchableOpacity
+        style={styles.dropdown}
+        onPress={() => setGender(gender === "Male" ? "Female" : "Male")}
+      >
+        <Text style={{ color: gender ? "#000" : "#777" }}>
+          {gender || "Gender"}
+        </Text>
       </TouchableOpacity>
 
       {/* Terms */}
@@ -58,7 +133,7 @@ export default function SignupScreen() {
       </Text>
 
       {/* Signup Button */}
-      <TouchableOpacity style={styles.signupBtn}>
+      <TouchableOpacity style={styles.signupBtn} onPress={handleSignup}>
         <Text style={styles.signupText}>Sign Up</Text>
       </TouchableOpacity>
 
