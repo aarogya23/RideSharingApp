@@ -17,9 +17,7 @@ export default function SignupScreen() {
     callingCode: ["977"],
   });
 
-  // ----------------------------
-  // STATES FOR API
-  // ----------------------------
+  //lets add the state to store Data
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -59,7 +57,7 @@ export default function SignupScreen() {
       }
 
       alert("Signup successful!");
-      router.push("/login");
+      router.push("/home");
 
     } catch (error) {
       alert("Network Error: " + error);
