@@ -39,9 +39,9 @@
           }
         }
       ],
-      "expo-maps"
+      "expo-maps",
+      "expo-web-browser"
     ],
-    
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

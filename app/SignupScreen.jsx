@@ -138,7 +138,9 @@ export default function SignupScreen() {
       <Text style={styles.orText}>or</Text>
 
       {/* Social Signup Buttons */}
-      <TouchableOpacity style={styles.socialBtn}>
+      <TouchableOpacity style={styles.socialBtn}
+      onPress={() => router.push("/GoogleLogin")}
+      >
         <Image
           source={require("@/assets/images/Gmail.png")}
           style={styles.socialIcon}
@@ -146,7 +148,9 @@ export default function SignupScreen() {
         <Text style={styles.socialText}>Sign up with Gmail</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.socialBtn}>
+      <TouchableOpacity style={styles.socialBtn}
+        
+      >
         <Image
           source={require("@/assets/images/Facebook.png")}
           style={styles.socialIcon}
