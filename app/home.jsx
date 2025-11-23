@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import { Stack } from "expo-router";
 import "leaflet/dist/leaflet.css";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ImageBackground,
   Platform,
@@ -16,22 +17,93 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState("Transport");
   const [rentalInput, setRentalInput] = useState("");
 
+  const [userLocation, setUserLocation] = useState(null);
+  const [routeCoords, setRouteCoords] = useState([]);
+
   const isWeb = Platform.OS === "web";
 
+  // ================== GET USER GPS LOCATION (WEB) ==================
+  useEffect(() => {
+    if (!isWeb) return;
+
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        alert("Location permission denied");
+        return;
+      }
+
+      const loc = await Location.getCurrentPositionAsync();
+      setUserLocation([loc.coords.latitude, loc.coords.longitude]);
+    })();
+  }, []);
+
+  // =========== SEARCH DESTINATION & DRAW ROUTE (WEB) ===========
+  const handleSearchDestination = async () => {
+    if (!rentalInput || !userLocation) return;
+
+    try {
+      // Geocoding API → convert text to lat/lon
+      const geoRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${rentalInput}`
+      );
+      const geoData = await geoRes.json();
+      if (geoData.length === 0) {
+        alert("Destination not found");
+        return;
+      }
+
+      const destLat = geoData[0].lat;
+      const destLon = geoData[0].lon;
+
+      // OSRM Route API
+      const routeRes = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${userLocation[1]},${userLocation[0]};${destLon},${destLat}?overview=full&geometries=geojson`
+      );
+      const routeData = await routeRes.json();
+
+      const coords = routeData.routes[0].geometry.coordinates.map((c) => [
+        c[1],
+        c[0],
+      ]);
+
+      setRouteCoords(coords);
+    } catch (error) {
+      console.log(error);
+      alert("Something went wrong.");
+    }
+  };
+
+  // ====================== LEAFLET MAP FOR WEB ======================
   let WebMap = null;
 
-  // 👉 Load full-screen leaflet map only on Web
   if (isWeb) {
-    const { MapContainer, TileLayer } = require("react-leaflet");
+    const {
+      MapContainer,
+      TileLayer,
+      Marker,
+      Popup,
+      Polyline,
+    } = require("react-leaflet");
 
     WebMap = (
       <View style={styles.webMap}>
         <MapContainer
-          center={[27.7172, 85.324]}
-          zoom={13}
+          center={userLocation || [27.7172, 85.324]}
+          zoom={14}
           style={{ height: "100%", width: "100%" }}
         >
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+          {/* User Location Marker */}
+          {userLocation && (
+            <Marker position={userLocation}>
+              <Popup>You are here</Popup>
+            </Marker>
+          )}
+
+          {/* Route Polyline */}
+          {routeCoords.length > 0 && <Polyline positions={routeCoords} />}
         </MapContainer>
       </View>
     );
@@ -39,10 +111,11 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* FULL SCREEN MAP FOR WEB */}
+
+      {/* FULL SCREEN MAP (WEB) */}
       {isWeb && WebMap}
 
-      {/* FULL SCREEN BACKGROUND IMAGE FOR NATIVE */}
+      {/* FULL SCREEN BACKGROUND IMAGE FOR MOBILE */}
       {!isWeb && (
         <ImageBackground
           source={require("@/assets/images/map.png")}
@@ -51,7 +124,7 @@ export default function HomeScreen() {
         />
       )}
 
-      {/* ========= UI OVER MAP ========= */}
+      {/* =================== UI OVERLAY =================== */}
 
       {/* Top Buttons */}
       <View style={styles.topRow}>
@@ -77,14 +150,15 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Rental Input */}
+      {/* Destination Search Input */}
       <View style={styles.rentalInputContainer}>
         <TextInput
           style={styles.rentalInput}
-          placeholder="Enter your destination details..."
+          placeholder="Enter your destination..."
           placeholderTextColor="#555"
           value={rentalInput}
           onChangeText={setRentalInput}
+          onSubmitEditing={handleSearchDestination}
         />
       </View>
 
@@ -92,7 +166,13 @@ export default function HomeScreen() {
       <View style={styles.searchCard}>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={20} color="#7E7E7E" />
-          <TextInput placeholder="Where would you go?" style={styles.searchInput} />
+          <TextInput
+            placeholder="Where would you go?"
+            style={styles.searchInput}
+            value={rentalInput}
+            onChangeText={setRentalInput}
+            onSubmitEditing={handleSearchDestination}
+          />
           <Ionicons name="heart-outline" size={20} color="#7E7E7E" />
         </View>
 
@@ -102,10 +182,7 @@ export default function HomeScreen() {
             onPress={() => setActiveTab("Transport")}
           >
             <Text
-              style={[
-                styles.toggleText,
-                activeTab === "Transport" && styles.activeText,
-              ]}
+              style={[styles.toggleText, activeTab === "Transport" && styles.activeText]}
             >
               Transport
             </Text>
@@ -116,10 +193,7 @@ export default function HomeScreen() {
             onPress={() => setActiveTab("Delivery")}
           >
             <Text
-              style={[
-                styles.toggleText,
-                activeTab === "Delivery" && styles.activeText,
-              ]}
+              style={[styles.toggleText, activeTab === "Delivery" && styles.activeText]}
             >
               Delivery
             </Text>
@@ -127,7 +201,7 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem}>
           <Ionicons name="home" size={24} color="#0A8F5B" />
@@ -155,11 +229,9 @@ export default function HomeScreen() {
   );
 }
 
-/* ============ STYLES ============ */
+/* SAME STYLES BELOW */
 const styles = StyleSheet.create({
   container: { flex: 1 },
-
-  /* FULL SCREEN MAP */
   webMap: {
     position: "absolute",
     top: 0,
@@ -170,13 +242,9 @@ const styles = StyleSheet.create({
   },
   nativeMap: {
     position: "absolute",
-    top: 0,
-    left: 0,
     height: "100%",
     width: "100%",
   },
-
-  /* UI ON TOP OF MAP */
   topRow: {
     position: "absolute",
     top: 50,
@@ -187,7 +255,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     zIndex: 5,
   },
-
   menuBtn: {
     backgroundColor: "white",
     padding: 10,
@@ -198,8 +265,6 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 10,
   },
-
-  /* Radar (native only) */
   radarContainer: {
     position: "absolute",
     top: "30%",
@@ -230,8 +295,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-
-  /* Rental input */
   rentalInputContainer: {
     position: "absolute",
     top: 260,
@@ -247,8 +310,6 @@ const styles = StyleSheet.create({
     padding: 13,
     fontSize: 16,
   },
-
-  /* Search Card */
   searchCard: {
     position: "absolute",
     top: 330,
@@ -269,7 +330,6 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   searchInput: { flex: 1, marginLeft: 8, fontSize: 16 },
-
   toggleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -285,8 +345,6 @@ const styles = StyleSheet.create({
   toggleText: { color: "#0A8F5B", fontSize: 15, fontWeight: "500" },
   activeToggle: { backgroundColor: "#0A8F5B" },
   activeText: { color: "white" },
-
-  /* Bottom Nav */
   bottomNav: {
     position: "absolute",
     bottom: 0,
@@ -300,7 +358,6 @@ const styles = StyleSheet.create({
   navItem: { alignItems: "center" },
   navText: { fontSize: 12, color: "#555" },
   navTextActive: { color: "#0A8F5B", fontSize: 12, fontWeight: "600" },
-
   walletIconContainer: {
     width: 60,
     height: 60,
