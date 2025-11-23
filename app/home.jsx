@@ -1,19 +1,59 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
+import "leaflet/dist/leaflet.css";
 import React, { useState } from "react";
-import { ImageBackground, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  ImageBackground,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState("Transport");
-  const [rentalInput, setRentalInput] = useState(""); // State for the new input
+  const [rentalInput, setRentalInput] = useState("");
+
+  const isWeb = Platform.OS === "web";
+
+  let WebMap = null;
+
+  // 👉 Load full-screen leaflet map only on Web
+  if (isWeb) {
+    const { MapContainer, TileLayer } = require("react-leaflet");
+
+    WebMap = (
+      <View style={styles.webMap}>
+        <MapContainer
+          center={[27.7172, 85.324]}
+          zoom={13}
+          style={{ height: "100%", width: "100%" }}
+        >
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        </MapContainer>
+      </View>
+    );
+  }
 
   return (
-    <ImageBackground
-      source={require("@/assets/images/map.png")} // Your static map image here
-      style={styles.container}
-      resizeMode="cover" // This ensures the image fills the entire screen without distortion
-    >
-      {/* Top Row Buttons */}
+    <View style={styles.container}>
+      {/* FULL SCREEN MAP FOR WEB */}
+      {isWeb && WebMap}
+
+      {/* FULL SCREEN BACKGROUND IMAGE FOR NATIVE */}
+      {!isWeb && (
+        <ImageBackground
+          source={require("@/assets/images/map.png")}
+          style={styles.nativeMap}
+          resizeMode="cover"
+        />
+      )}
+
+      {/* ========= UI OVER MAP ========= */}
+
+      {/* Top Buttons */}
       <View style={styles.topRow}>
         <Stack.Screen options={{ headerShown: false }} />
         <TouchableOpacity style={styles.menuBtn}>
@@ -23,63 +63,70 @@ export default function HomeScreen() {
           <Ionicons name="notifications-outline" size={22} color="#0A8F5B" />
         </TouchableOpacity>
       </View>
-      {/* Center Radar Circle */}
-      <View style={styles.radarContainer}>
-        <View style={styles.outerCircle}>
-          <View style={styles.middleCircle}>
-            <View style={styles.innerCircle}>
-              <Ionicons name="location" size={22} color="white" />
+
+      {/* Radar Only On Native */}
+      {!isWeb && (
+        <View style={styles.radarContainer}>
+          <View style={styles.outerCircle}>
+            <View style={styles.middleCircle}>
+              <View style={styles.innerCircle}>
+                <Ionicons name="location" size={22} color="white" />
+              </View>
             </View>
           </View>
         </View>
-      </View>
+      )}
+
       {/* Rental Input */}
       <View style={styles.rentalInputContainer}>
         <TextInput
           style={styles.rentalInput}
           placeholder="Enter your destination details..."
+          placeholderTextColor="#555"
           value={rentalInput}
           onChangeText={setRentalInput}
         />
       </View>
+
       {/* Search Card */}
       <View style={styles.searchCard}>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={20} color="#7E7E7E" />
-          <TextInput
-            placeholder="Where would you go?"
-            style={styles.searchInput}
-          />
+          <TextInput placeholder="Where would you go?" style={styles.searchInput} />
           <Ionicons name="heart-outline" size={20} color="#7E7E7E" />
         </View>
-        {/* Toggle Transport / Delivery */}
+
         <View style={styles.toggleRow}>
           <TouchableOpacity
-            style={[
-              styles.toggleBtn,
-              activeTab === "Transport" && styles.activeToggle,
-            ]}
+            style={[styles.toggleBtn, activeTab === "Transport" && styles.activeToggle]}
             onPress={() => setActiveTab("Transport")}
           >
-            <Text style={[
-              styles.toggleText,
-              activeTab === "Transport" && styles.activeText
-            ]}>Transport</Text>
+            <Text
+              style={[
+                styles.toggleText,
+                activeTab === "Transport" && styles.activeText,
+              ]}
+            >
+              Transport
+            </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
-            style={[
-              styles.toggleBtn,
-              activeTab === "Delivery" && styles.activeToggle,
-            ]}
+            style={[styles.toggleBtn, activeTab === "Delivery" && styles.activeToggle]}
             onPress={() => setActiveTab("Delivery")}
           >
-            <Text style={[
-              styles.toggleText,
-              activeTab === "Delivery" && styles.activeText
-            ]}>Delivery</Text>
+            <Text
+              style={[
+                styles.toggleText,
+                activeTab === "Delivery" && styles.activeText,
+              ]}
+            >
+              Delivery
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
+
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem}>
@@ -90,9 +137,11 @@ export default function HomeScreen() {
           <Ionicons name="heart-outline" size={24} color="#555" />
           <Text style={styles.navText}>Favourite</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.walletIconContainer}>
           <Ionicons name="wallet" size={26} color="#fff" />
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem}>
           <Ionicons name="gift-outline" size={24} color="#555" />
           <Text style={styles.navText}>Offer</Text>
@@ -102,21 +151,43 @@ export default function HomeScreen() {
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
       </View>
-    </ImageBackground>
+    </View>
   );
 }
 
+/* ============ STYLES ============ */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  container: { flex: 1 },
+
+  /* FULL SCREEN MAP */
+  webMap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    height: "100%",
+    width: "100%",
+    zIndex: 0,
   },
-  // Top
+  nativeMap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    height: "100%",
+    width: "100%",
+  },
+
+  /* UI ON TOP OF MAP */
   topRow: {
-    marginTop: 50,
+    position: "absolute",
+    top: 50,
+    left: 0,
+    right: 0,
     paddingHorizontal: 20,
     flexDirection: "row",
     justifyContent: "space-between",
+    zIndex: 5,
   },
+
   menuBtn: {
     backgroundColor: "white",
     padding: 10,
@@ -127,17 +198,19 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 10,
   },
-  // Radar
+
+  /* Radar (native only) */
   radarContainer: {
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 40,
+    position: "absolute",
+    top: "30%",
+    alignSelf: "center",
+    zIndex: 5,
   },
   outerCircle: {
     width: 180,
     height: 180,
     borderRadius: 100,
-    backgroundColor: "rgba(28, 199, 142, 0.2)",
+    backgroundColor: "rgba(28,199,142,0.2)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -145,7 +218,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 100,
-    backgroundColor: "rgba(28, 199, 142, 0.3)",
+    backgroundColor: "rgba(28,199,142,0.3)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -157,28 +230,34 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  // Rental Input
+
+  /* Rental input */
   rentalInputContainer: {
+    position: "absolute",
+    top: 260,
+    left: 20,
+    right: 20,
     backgroundColor: "white",
-    marginTop: 20,
-    marginHorizontal: 20,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#0A8F5B",
+    zIndex: 5,
   },
   rentalInput: {
-    color: "black",
     padding: 13,
-    fontSize: 17,
-    fontWeight: "500",
-    placeholderTextColor: "#666",
+    fontSize: 16,
   },
-  // Search Card
+
+  /* Search Card */
   searchCard: {
+    position: "absolute",
+    top: 330,
+    left: 20,
+    right: 20,
     backgroundColor: "#E5F7EE",
-    margin: 20,
     padding: 15,
     borderRadius: 15,
+    zIndex: 5,
   },
   searchBox: {
     flexDirection: "row",
@@ -189,11 +268,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 15,
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-  },
+  searchInput: { flex: 1, marginLeft: 8, fontSize: 16 },
+
   toggleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -206,18 +282,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginHorizontal: 5,
   },
-  toggleText: {
-    color: "#0A8F5B",
-    fontSize: 15,
-    fontWeight: "500",
-  },
-  activeToggle: {
-    backgroundColor: "#0A8F5B",
-  },
-  activeText: {
-    color: "white",
-  },
-  // Bottom Nav
+  toggleText: { color: "#0A8F5B", fontSize: 15, fontWeight: "500" },
+  activeToggle: { backgroundColor: "#0A8F5B" },
+  activeText: { color: "white" },
+
+  /* Bottom Nav */
   bottomNav: {
     position: "absolute",
     bottom: 0,
@@ -226,19 +295,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     paddingVertical: 12,
     backgroundColor: "white",
+    zIndex: 10,
   },
-  navItem: {
-    alignItems: "center",
-  },
-  navText: {
-    fontSize: 12,
-    color: "#555",
-  },
-  navTextActive: {
-    color: "#0A8F5B",
-    fontSize: 12,
-    fontWeight: "600",
-  },
+  navItem: { alignItems: "center" },
+  navText: { fontSize: 12, color: "#555" },
+  navTextActive: { color: "#0A8F5B", fontSize: 12, fontWeight: "600" },
+
   walletIconContainer: {
     width: 60,
     height: 60,
