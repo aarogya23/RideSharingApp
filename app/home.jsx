@@ -143,7 +143,8 @@ export default function HomeScreen() {
           <View style={styles.outerCircle}>
             <View style={styles.middleCircle}>
               <View style={styles.innerCircle}>
-                <Ionicons name="location" size={22} color="white" />
+                <Ionicons name="location"  color="white" />
+              
               </View>
             </View>
           </View>
@@ -320,7 +321,7 @@ const styles = StyleSheet.create({
   /* DESTINATION INPUT */
   rentalInputContainer: {
     position: "absolute",
-    top: 240,
+    top: 420,
     left: 20,
     right: 20,
     backgroundColor: "#fff",
@@ -344,7 +345,7 @@ const styles = StyleSheet.create({
   /* SEARCH CARD */
   searchCard: {
     position: "absolute",
-    top: 315,
+    top: 500,
     left: 20,
     right: 20,
     backgroundColor: "#E7F8F0",
