@@ -16,13 +16,22 @@ import {
 export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState("Transport");
   const [rentalInput, setRentalInput] = useState("");
-
   const [userLocation, setUserLocation] = useState(null);
   const [routeCoords, setRouteCoords] = useState([]);
+  const [routeDistance, setRouteDistance] = useState(null);
 
   const isWeb = Platform.OS === "web";
 
-  // ================== GET USER GPS LOCATION (WEB) ==================
+  // -------------- DRIVER LIST (4–5 MOCK DRIVERS) -----------------
+  const drivers = [
+    { id: 1, lat: 27.7172, lon: 85.3240 },
+    { id: 2, lat: 27.7200, lon: 85.3300 },
+    { id: 3, lat: 27.7150, lon: 85.3220 },
+    { id: 4, lat: 27.7250, lon: 85.3350 },
+    { id: 5, lat: 27.7105, lon: 85.3288 },
+  ];
+
+  // =============== GET USER LOCATION ==================
   useEffect(() => {
     if (!isWeb) return;
 
@@ -38,12 +47,12 @@ export default function HomeScreen() {
     })();
   }, []);
 
-  // =========== SEARCH DESTINATION & DRAW ROUTE (WEB) ===========
+  // ================ SEARCH DESTINATION + GET ROUTE ==================
   const handleSearchDestination = async () => {
     if (!rentalInput || !userLocation) return;
 
     try {
-      // Geocoding API → convert text to lat/lon
+      // 1) GET DESTINATION LAT/LON
       const geoRes = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${rentalInput}`
       );
@@ -56,7 +65,7 @@ export default function HomeScreen() {
       const destLat = geoData[0].lat;
       const destLon = geoData[0].lon;
 
-      // OSRM Route API
+      // 2) GET ROUTE (OSRM)
       const routeRes = await fetch(
         `https://router.project-osrm.org/route/v1/driving/${userLocation[1]},${userLocation[0]};${destLon},${destLat}?overview=full&geometries=geojson`
       );
@@ -68,13 +77,18 @@ export default function HomeScreen() {
       ]);
 
       setRouteCoords(coords);
+
+      // --------------- GET DISTANCE (IN KM) -------------------
+      const meters = routeData.routes[0].distance;
+      const km = (meters / 1000).toFixed(2);
+      setRouteDistance(km);
     } catch (error) {
       console.log(error);
       alert("Something went wrong.");
     }
   };
 
-  // ====================== LEAFLET MAP FOR WEB ======================
+  // ====================== LEAFLET MAP (WEB ONLY) ======================
   let WebMap = null;
 
   if (isWeb) {
@@ -86,6 +100,13 @@ export default function HomeScreen() {
       Polyline,
     } = require("react-leaflet");
 
+    // Custom driver icon
+    const L = require("leaflet");
+    const driverIcon = L.icon({
+      iconUrl: "https://cdn-icons-png.flaticon.com/512/3202/3202926.png",
+      iconSize: [40, 40],
+    });
+
     WebMap = (
       <View style={styles.webMap}>
         <MapContainer
@@ -95,14 +116,21 @@ export default function HomeScreen() {
         >
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-          {/* User Location Marker */}
+          {/* USER LOCATION */}
           {userLocation && (
             <Marker position={userLocation}>
               <Popup>You are here</Popup>
             </Marker>
           )}
 
-          {/* Route Polyline */}
+          {/* DRIVER MARKERS */}
+          {drivers.map((d) => (
+            <Marker key={d.id} position={[d.lat, d.lon]} icon={driverIcon}>
+              <Popup>Driver {d.id}</Popup>
+            </Marker>
+          ))}
+
+          {/* ROUTE PATH */}
           {routeCoords.length > 0 && <Polyline positions={routeCoords} />}
         </MapContainer>
       </View>
@@ -112,10 +140,8 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
 
-      {/* FULL SCREEN MAP (WEB) */}
       {isWeb && WebMap}
 
-      {/* FULL SCREEN BACKGROUND IMAGE FOR MOBILE */}
       {!isWeb && (
         <ImageBackground
           source={require("@/assets/images/map.png")}
@@ -124,9 +150,7 @@ export default function HomeScreen() {
         />
       )}
 
-      {/* =================== UI OVERLAY =================== */}
-
-      {/* Top Buttons */}
+      {/* TOP ICONS */}
       <View style={styles.topRow}>
         <Stack.Screen options={{ headerShown: false }} />
         <TouchableOpacity style={styles.menuBtn}>
@@ -137,21 +161,14 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Radar Only On Native */}
-      {!isWeb && (
-        <View style={styles.radarContainer}>
-          <View style={styles.outerCircle}>
-            <View style={styles.middleCircle}>
-              <View style={styles.innerCircle}>
-                <Ionicons name="location"  color="white" />
-              
-              </View>
-            </View>
-          </View>
+      {/* DISTANCE DISPLAY */}
+      {routeDistance && (
+        <View style={styles.distanceBox}>
+          <Text style={styles.distanceText}>Distance: {routeDistance} km</Text>
         </View>
       )}
 
-      {/* Destination Search Input */}
+      {/* SEARCH INPUT */}
       <View style={styles.rentalInputContainer}>
         <TextInput
           style={styles.rentalInput}
@@ -163,7 +180,7 @@ export default function HomeScreen() {
         />
       </View>
 
-      {/* Search Card */}
+      {/* SEARCH CARD */}
       <View style={styles.searchCard}>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={20} color="#7E7E7E" />
@@ -182,9 +199,7 @@ export default function HomeScreen() {
             style={[styles.toggleBtn, activeTab === "Transport" && styles.activeToggle]}
             onPress={() => setActiveTab("Transport")}
           >
-            <Text
-              style={[styles.toggleText, activeTab === "Transport" && styles.activeText]}
-            >
+            <Text style={[styles.toggleText, activeTab === "Transport" && styles.activeText]}>
               Transport
             </Text>
           </TouchableOpacity>
@@ -193,16 +208,14 @@ export default function HomeScreen() {
             style={[styles.toggleBtn, activeTab === "Delivery" && styles.activeToggle]}
             onPress={() => setActiveTab("Delivery")}
           >
-            <Text
-              style={[styles.toggleText, activeTab === "Delivery" && styles.activeText]}
-            >
+            <Text style={[styles.toggleText, activeTab === "Delivery" && styles.activeText]}>
               Delivery
             </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Bottom Navigation Bar */}
+      {/* BOTTOM NAV */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem}>
           <Ionicons name="home" size={24} color="#0A8F5B" />
@@ -231,18 +244,11 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F3FDF8",
-  },
-
-  /* MAP */
+  container: { flex: 1, backgroundColor: "#F3FDF8" },
   webMap: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    height: "100%",
-    width: "100%",
+    top: 0, left: 0,
+    height: "100%", width: "100%",
     zIndex: 0,
   },
   nativeMap: {
@@ -251,7 +257,6 @@ const styles = StyleSheet.create({
     width: "100%",
   },
 
-  /* TOP ICONS */
   topRow: {
     position: "absolute",
     top: 45,
@@ -263,6 +268,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 10,
   },
+
   menuBtn: {
     backgroundColor: "white",
     padding: 12,
@@ -282,43 +288,21 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
 
-  /* RADAR (Native Only) */
-  radarContainer: {
+  distanceBox: {
     position: "absolute",
-    top: "28%",
-    alignSelf: "center",
-    zIndex: 5,
-  },
-  outerCircle: {
-    width: 180,
-    height: 180,
-    borderRadius: 100,
-    backgroundColor: "rgba(10,143,91,0.18)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  middleCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 100,
-    backgroundColor: "rgba(10,143,91,0.25)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  innerCircle: {
-    width: 55,
-    height: 55,
-    borderRadius: 100,
+    top: 380,
+    left: 20,
     backgroundColor: "#0A8F5B",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 6,
+    padding: 10,
+    borderRadius: 10,
+    zIndex: 20,
+  },
+  distanceText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
   },
 
-  /* DESTINATION INPUT */
   rentalInputContainer: {
     position: "absolute",
     top: 420,
@@ -326,23 +310,13 @@ const styles = StyleSheet.create({
     right: 20,
     backgroundColor: "#fff",
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#0A8F5B",
     paddingVertical: 2,
     paddingHorizontal: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
     elevation: 5,
     zIndex: 10,
   },
-  rentalInput: {
-    padding: 12,
-    fontSize: 16,
-    color: "#000",
-  },
+  rentalInput: { padding: 12, fontSize: 16 },
 
-  /* SEARCH CARD */
   searchCard: {
     position: "absolute",
     top: 500,
@@ -351,9 +325,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#E7F8F0",
     padding: 18,
     borderRadius: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
     elevation: 5,
     zIndex: 10,
   },
@@ -367,14 +338,8 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     marginBottom: 15,
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-    color: "#000",
-  },
+  searchInput: { flex: 1, marginLeft: 8, fontSize: 16 },
 
-  /* TOGGLE BUTTONS */
   toggleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -385,26 +350,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#CDEFE0",
     borderRadius: 12,
     alignItems: "center",
-    justifyContent: "center",
     marginHorizontal: 5,
   },
-  toggleText: {
-    color: "#0A8F5B",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  activeToggle: {
-    backgroundColor: "#0A8F5B",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 4,
-  },
-  activeText: {
-    color: "white",
-  },
+  toggleText: { fontSize: 15, fontWeight: "600", color: "#0A8F5B" },
+  activeToggle: { backgroundColor: "#0A8F5B" },
+  activeText: { color: "white" },
 
-  /* BOTTOM NAVIGATION */
   bottomNav: {
     position: "absolute",
     bottom: 0,
@@ -415,28 +366,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopWidth: 1,
     borderColor: "#DCEEE5",
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
     elevation: 12,
-    zIndex: 20,
-  },
-  navItem: {
-    alignItems: "center",
-  },
-  navText: {
-    fontSize: 12,
-    color: "#777",
-    marginTop: 3,
-  },
-  navTextActive: {
-    fontSize: 12,
-    color: "#0A8F5B",
-    fontWeight: "700",
-    marginTop: 3,
   },
 
-  /* WALLET BUTTON */
+  navItem: { alignItems: "center" },
+  navText: { fontSize: 12, color: "#777", marginTop: 3 },
+  navTextActive: { fontSize: 12, color: "#0A8F5B", marginTop: 3 },
+
   walletIconContainer: {
     width: 60,
     height: 60,
@@ -445,10 +381,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginTop: -35,
-    shadowColor: "#000",
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
     elevation: 10,
   },
 });
-
