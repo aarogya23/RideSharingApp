@@ -19,22 +19,11 @@ export default function HomeScreen() {
   const [userLocation, setUserLocation] = useState(null);
   const [routeCoords, setRouteCoords] = useState([]);
   const [routeDistance, setRouteDistance] = useState(null);
-
-  // 🔥 NEW: Show drivers only after search
-  const [showDrivers, setShowDrivers] = useState(false);
+  const [routePrice, setRoutePrice] = useState(null); // 🔥 NEW PRICE STATE
 
   const isWeb = Platform.OS === "web";
 
-  // -------------- DRIVER LIST -----------------
-  const drivers = [
-    { id: 1, lat: 27.7172, lon: 85.324 },
-    { id: 2, lat: 27.7200, lon: 85.330 },
-    { id: 3, lat: 27.7150, lon: 85.322 },
-    { id: 4, lat: 27.7250, lon: 85.335 },
-    { id: 5, lat: 27.7105, lon: 85.3288 },
-  ];
-
-  // =============== GET USER LOCATION ==================
+  // ================= GET USER LOCATION ==================
   useEffect(() => {
     if (!isWeb) return;
 
@@ -50,16 +39,17 @@ export default function HomeScreen() {
     })();
   }, []);
 
-  // ================ SEARCH DESTINATION + GET ROUTE ==================
+  // ================= SEARCH DESTINATION + ROUTE ==================
   const handleSearchDestination = async () => {
     if (!rentalInput || !userLocation) return;
 
     try {
-      // GET LAT/LON
+      // Get lat/lon from Nominatim
       const geoRes = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${rentalInput}`
       );
       const geoData = await geoRes.json();
+
       if (geoData.length === 0) {
         alert("Destination not found");
         return;
@@ -68,7 +58,7 @@ export default function HomeScreen() {
       const destLat = geoData[0].lat;
       const destLon = geoData[0].lon;
 
-      // GET ROUTE FROM OSRM
+      // OSRM route fetch
       const routeRes = await fetch(
         `https://router.project-osrm.org/route/v1/driving/${userLocation[1]},${userLocation[0]};${destLon},${destLat}?overview=full&geometries=geojson`
       );
@@ -85,16 +75,17 @@ export default function HomeScreen() {
       const km = (meters / 1000).toFixed(2);
       setRouteDistance(km);
 
-      // 🔥 NEW — ONLY AFTER SEARCH SHOW DRIVERS
-      setShowDrivers(true);
+      // 🔥 PRICE CALCULATION (1km = Rs 30)
+      const price = (km * 30).toFixed(2);
+      setRoutePrice(price);
 
     } catch (error) {
       console.log(error);
-      alert("Something went wrong.");
+      alert("Error fetching route");
     }
   };
 
-  // ====================== LEAFLET MAP (WEB ONLY) ======================
+  // ================= WEB MAP ==================
   let WebMap = null;
 
   if (isWeb) {
@@ -105,12 +96,6 @@ export default function HomeScreen() {
       Popup,
       Polyline,
     } = require("react-leaflet");
-
-    const L = require("leaflet");
-    const driverIcon = L.icon({
-      iconUrl: "https://cdn-icons-png.flaticon.com/512/3202/3202926.png",
-      iconSize: [40, 40],
-    });
 
     WebMap = (
       <View style={styles.webMap}>
@@ -127,14 +112,6 @@ export default function HomeScreen() {
               <Popup>You are here</Popup>
             </Marker>
           )}
-
-          {/* 🔥 DRIVER MARKERS ONLY AFTER SEARCH */}
-          {showDrivers &&
-            drivers.map((d) => (
-              <Marker key={d.id} position={[d.lat, d.lon]} icon={driverIcon}>
-                <Popup>Driver {d.id}</Popup>
-              </Marker>
-            ))}
 
           {/* ROUTE LINE */}
           {routeCoords.length > 0 && <Polyline positions={routeCoords} />}
@@ -166,19 +143,19 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* DISTANCE DISPLAY */}
+      {/* DISTANCE + PRICE BOX */}
       {routeDistance && (
-        <View style={styles.distanceBox}>
-          <Text style={styles.distanceText}>Distance: {routeDistance} km</Text>
+        <View style={styles.infoBox}>
+          <Text style={styles.infoText}>Distance: {routeDistance} km</Text>
+          <Text style={styles.infoText}>Price: Rs {routePrice}</Text>
         </View>
       )}
 
-      {/* INPUT */}
+      {/* DESTINATION INPUT */}
       <View style={styles.rentalInputContainer}>
         <TextInput
           style={styles.rentalInput}
           placeholder="Enter your destination..."
-          placeholderTextColor="#555"
           value={rentalInput}
           onChangeText={setRentalInput}
           onSubmitEditing={handleSearchDestination}
@@ -226,7 +203,6 @@ export default function HomeScreen() {
           <Ionicons name="home" size={24} color="#0A8F5B" />
           <Text style={styles.navTextActive}>Home</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.navItem}>
           <Ionicons name="heart-outline" size={24} color="#555" />
           <Text style={styles.navText}>Favourite</Text>
@@ -250,12 +226,15 @@ export default function HomeScreen() {
   );
 }
 
+// ========= STYLES =========
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3FDF8" },
   webMap: {
     position: "absolute",
-    top: 0, left: 0,
-    height: "100%", width: "100%",
+    top: 0,
+    left: 0,
+    height: "100%",
+    width: "100%",
     zIndex: 0,
   },
   nativeMap: {
@@ -272,7 +251,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
     zIndex: 10,
   },
 
@@ -280,31 +258,23 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     padding: 12,
     borderRadius: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 5,
   },
   bellBtn: {
     backgroundColor: "white",
     padding: 12,
     borderRadius: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 5,
   },
 
-  distanceBox: {
+  infoBox: {
     position: "absolute",
     top: 380,
     left: 20,
     backgroundColor: "#0A8F5B",
-    padding: 10,
+    padding: 14,
     borderRadius: 10,
     zIndex: 20,
   },
-  distanceText: {
+  infoText: {
     color: "white",
     fontSize: 16,
     fontWeight: "600",
@@ -347,10 +317,7 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, marginLeft: 8, fontSize: 16 },
 
-  toggleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
+  toggleRow: { flexDirection: "row", justifyContent: "space-between" },
   toggleBtn: {
     flex: 1,
     paddingVertical: 12,
@@ -373,9 +340,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopWidth: 1,
     borderColor: "#DCEEE5",
-    elevation: 12,
   },
-
   navItem: { alignItems: "center" },
   navText: { fontSize: 12, color: "#777", marginTop: 3 },
   navTextActive: { fontSize: 12, color: "#0A8F5B", marginTop: 3 },
@@ -388,6 +353,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginTop: -35,
-    elevation: 10,
   },
 });
