@@ -4,6 +4,7 @@ import { Stack } from "expo-router";
 import "leaflet/dist/leaflet.css";
 import React, { useEffect, useState } from "react";
 import {
+  Image,
   ImageBackground,
   Platform,
   StyleSheet,
@@ -19,7 +20,17 @@ export default function HomeScreen() {
   const [userLocation, setUserLocation] = useState(null);
   const [routeCoords, setRouteCoords] = useState([]);
   const [routeDistance, setRouteDistance] = useState(null);
-  const [routePrice, setRoutePrice] = useState(null); // 🔥 NEW PRICE STATE
+  const [routePrice, setRoutePrice] = useState(null);
+
+  // VEHICLE TYPE
+  const [vehicleType, setVehicleType] = useState("Bike");
+
+  // PRICES
+  const priceRates = {
+    Bike: 20,
+    Comfort: 35,
+    Car: 50,
+  };
 
   const isWeb = Platform.OS === "web";
 
@@ -71,14 +82,15 @@ export default function HomeScreen() {
 
       setRouteCoords(coords);
 
+      // Distance in KM
       const meters = routeData.routes[0].distance;
       const km = (meters / 1000).toFixed(2);
       setRouteDistance(km);
 
-      // 🔥 PRICE CALCULATION (1km = Rs 30)
-      const price = (km * 30).toFixed(2);
+      // PRICE CALCULATION BASED ON VEHICLE TYPE
+      const rate = priceRates[vehicleType];
+      const price = (km * rate).toFixed(2);
       setRoutePrice(price);
-
     } catch (error) {
       console.log(error);
       alert("Error fetching route");
@@ -106,14 +118,12 @@ export default function HomeScreen() {
         >
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-          {/* USER LOCATION */}
           {userLocation && (
             <Marker position={userLocation}>
               <Popup>You are here</Popup>
             </Marker>
           )}
 
-          {/* ROUTE LINE */}
           {routeCoords.length > 0 && <Polyline positions={routeCoords} />}
         </MapContainer>
       </View>
@@ -147,7 +157,7 @@ export default function HomeScreen() {
       {routeDistance && (
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>Distance: {routeDistance} km</Text>
-          <Text style={styles.infoText}>Price: Rs {routePrice}</Text>
+          <Text style={styles.infoText}>Price ({vehicleType}): Rs {routePrice}</Text>
         </View>
       )}
 
@@ -176,25 +186,76 @@ export default function HomeScreen() {
           <Ionicons name="heart-outline" size={20} color="#7E7E7E" />
         </View>
 
-        <View style={styles.toggleRow}>
-          <TouchableOpacity
-            style={[styles.toggleBtn, activeTab === "Transport" && styles.activeToggle]}
-            onPress={() => setActiveTab("Transport")}
-          >
-            <Text style={[styles.toggleText, activeTab === "Transport" && styles.activeText]}>
-              Transport
-            </Text>
-          </TouchableOpacity>
+        {/* SHOW VEHICLE OPTIONS ONLY AFTER SEARCH */}
+        {routeDistance && (
+          <View style={styles.vehicleRow}>
+            {/* BIKE */}
+            <TouchableOpacity
+              style={[
+                styles.vehicleBtn,
+                vehicleType === "Bike" && styles.vehicleActive,
+              ]}
+              onPress={() => setVehicleType("Bike")}
+            >
+              <Image
+                source={require("@/assets/images/map.png")}
+                style={styles.vehicleImg}
+              />
+              <Text
+                style={[
+                  styles.vehicleText,
+                  vehicleType === "Bike" && styles.vehicleTextActive,
+                ]}
+              >
+                Motor Bike
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.toggleBtn, activeTab === "Delivery" && styles.activeToggle]}
-            onPress={() => setActiveTab("Delivery")}
-          >
-            <Text style={[styles.toggleText, activeTab === "Delivery" && styles.activeText]}>
-              Delivery
-            </Text>
-          </TouchableOpacity>
-        </View>
+            {/* COMFORT */}
+            <TouchableOpacity
+              style={[
+                styles.vehicleBtn,
+                vehicleType === "Comfort" && styles.vehicleActive,
+              ]}
+              onPress={() => setVehicleType("Comfort")}
+            >
+              <Image
+                source={require("@/assets/images/map.png")}
+                style={styles.vehicleImg}
+              />
+              <Text
+                style={[
+                  styles.vehicleText,
+                  vehicleType === "Comfort" && styles.vehicleTextActive,
+                ]}
+              >
+                Comfort
+              </Text>
+            </TouchableOpacity>
+
+            {/* CAR */}
+            <TouchableOpacity
+              style={[
+                styles.vehicleBtn,
+                vehicleType === "Car" && styles.vehicleActive,
+              ]}
+              onPress={() => setVehicleType("Car")}
+            >
+              <Image
+                source={require("@/assets/images/map.png")}
+                style={styles.vehicleImg}
+              />
+              <Text
+                style={[
+                  styles.vehicleText,
+                  vehicleType === "Car" && styles.vehicleTextActive,
+                ]}
+              >
+                Car
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* BOTTOM NAV */}
@@ -267,7 +328,7 @@ const styles = StyleSheet.create({
 
   infoBox: {
     position: "absolute",
-    top: 380,
+    top: 330,
     left: 20,
     backgroundColor: "#0A8F5B",
     padding: 14,
@@ -317,18 +378,40 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, marginLeft: 8, fontSize: 16 },
 
-  toggleRow: { flexDirection: "row", justifyContent: "space-between" },
-  toggleBtn: {
+  vehicleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+
+  vehicleBtn: {
     flex: 1,
-    paddingVertical: 12,
-    backgroundColor: "#CDEFE0",
-    borderRadius: 12,
     alignItems: "center",
+    backgroundColor: "#CDEFE0",
+    paddingVertical: 12,
+    borderRadius: 12,
     marginHorizontal: 5,
   },
-  toggleText: { fontSize: 15, fontWeight: "600", color: "#0A8F5B" },
-  activeToggle: { backgroundColor: "#0A8F5B" },
-  activeText: { color: "white" },
+
+  vehicleActive: {
+    backgroundColor: "#0A8F5B",
+  },
+
+  vehicleImg: {
+    width: 32,
+    height: 32,
+    marginBottom: 6,
+  },
+
+  vehicleText: {
+    fontSize: 14,
+    color: "#0A8F5B",
+    fontWeight: "600",
+  },
+
+  vehicleTextActive: {
+    color: "#fff",
+  },
 
   bottomNav: {
     position: "absolute",
