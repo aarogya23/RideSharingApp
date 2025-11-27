@@ -350,6 +350,51 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
 
+  bottomNav: {
+  position: "absolute",
+  bottom: 0,
+  left: 0,
+  right: 0,
+  height: 70,
+  backgroundColor: "#fff",
+  flexDirection: "row",
+  justifyContent: "space-around",
+  alignItems: "center",
+  elevation: 10,
+  borderTopWidth: 1,
+  borderColor: "#eee",
+},
+
+navItem: {
+  justifyContent: "center",
+  alignItems: "center",
+},
+
+navText: {
+  fontSize: 12,
+  color: "#555",
+},
+
+navTextActive: {
+  fontSize: 12,
+  color: "#00996D",
+  fontWeight: "600",
+},
+
+navCenter: {
+  marginBottom: 40,
+},
+
+centerButton: {
+  width: 60,
+  height: 60,
+  backgroundColor: "#00996D",
+  borderRadius: 30,
+  justifyContent: "center",
+  alignItems: "center",
+  elevation: 5,
+},
+
   menuBtn: { backgroundColor: "white", padding: 12, borderRadius: 12 },
   bellBtn: { backgroundColor: "white", padding: 12, borderRadius: 12 },
 
