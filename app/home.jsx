@@ -316,7 +316,34 @@ export default function HomeScreen() {
         </View>
       )}
 
-      
+      <View style={styles.bottomNav}>
+      <TouchableOpacity style={styles.navItem}>
+        <Ionicons name="home-outline" size={24} color="#00996D" />
+        <Text style={styles.navTextActive}>Home</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.navItem}>
+        <Ionicons name="heart-outline" size={24} color="#555" />
+        <Text style={styles.navText}>Favourite</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.navCenter}>
+        <View style={styles.centerButton}>
+          <Ionicons name="wallet-outline" size={28} color="#fff" />
+        </View>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.navItem}>
+        <Ionicons name="gift-outline" size={24} color="#555" />
+        <Text style={styles.navText}>Offer</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.navItem}>
+        <Ionicons name="person-outline" size={24} color="#555" />
+        <Text style={styles.navText}>Profile</Text>
+      </TouchableOpacity>
+    </View>
+
     </View>
   );
 }
