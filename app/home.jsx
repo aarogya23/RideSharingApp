@@ -16,14 +16,40 @@ import {
   View,
 } from "react-native";
 
+//
+// Popup component (kept inside same file for simplicity)
+//
+const PopupMessage = ({ type = "success", message = "" }) => {
+  if (!message) return null;
+
+  return (
+    <View
+      style={[
+        styles.popupContainer,
+        type === "error" ? styles.popupError : styles.popupSuccess,
+      ]}
+    >
+      <Text style={styles.popupText}>{message}</Text>
+    </View>
+  );
+};
+
 export default function HomeScreen() {
+  // popup state
   const [popup, setPopup] = useState({ visible: false, type: "success", message: "" });
 
+  // helper: show popup and auto-hide after 2.5s
   const showPopup = (type, message) => {
+    // show
     setPopup({ visible: true, type, message });
-    setTimeout(() => setPopup((prev) => ({ ...prev, visible: false })), 2500);
+
+    // hide after 2.5s (clear message too)
+    setTimeout(() => {
+      setPopup({ visible: false, type: "", message: "" });
+    }, 2500);
   };
 
+  // route & UI state
   const [routeData, setRouteData] = useState({
     input: "",
     userLocation: null,
@@ -55,7 +81,9 @@ export default function HomeScreen() {
           ...prev,
           userLocation: [loc.coords.latitude, loc.coords.longitude],
         }));
-      } catch (err) {}
+      } catch (err) {
+        console.log("Location error:", err);
+      }
     })();
   }, [isWeb]);
 
@@ -72,10 +100,15 @@ export default function HomeScreen() {
 
   // SEARCH DESTINATION
   const handleSearchDestination = async () => {
-    if (!routeData.input.trim()) return Alert.alert("Enter destination");
+    if (!routeData.input.trim()) {
+      Alert.alert("Enter destination");
+      return;
+    }
 
-    if (isWeb && !routeData.userLocation)
-      return Alert.alert("Wait", "Location still loading");
+    if (isWeb && !routeData.userLocation) {
+      Alert.alert("Location unavailable", "Try again when location loads.");
+      return;
+    }
 
     setLoadingRoute(true);
     try {
@@ -85,13 +118,23 @@ export default function HomeScreen() {
         )}`
       );
       const geo = await geoRes.json();
-      if (!geo.length) return Alert.alert("Not found");
+      if (!geo?.length) {
+        Alert.alert("Not found");
+        setLoadingRoute(false);
+        return;
+      }
 
       const destLat = parseFloat(geo[0].lat);
       const destLon = parseFloat(geo[0].lon);
 
-      if (!routeData.userLocation)
-        return Alert.alert("Location missing", "Run on browser for now.");
+      if (!routeData.userLocation) {
+        Alert.alert(
+          "User location missing",
+          "App couldn't get your location. Enter manually (dev) or test on web."
+        );
+        setLoadingRoute(false);
+        return;
+      }
 
       const fromLon = routeData.userLocation[1];
       const fromLat = routeData.userLocation[0];
@@ -101,7 +144,11 @@ export default function HomeScreen() {
       const res = await fetch(url);
       const route = await res.json();
 
-      if (!route.routes?.length) return Alert.alert("Route not found");
+      if (!route.routes?.length) {
+        Alert.alert("Route not found");
+        setLoadingRoute(false);
+        return;
+      }
 
       const coords = route.routes[0].geometry.coordinates.map((c) => [c[1], c[0]]);
       const km = parseFloat((route.routes[0].distance / 1000).toFixed(2));
@@ -112,7 +159,8 @@ export default function HomeScreen() {
         routeDistance: km,
       }));
     } catch (err) {
-      Alert.alert("Error", "Failed route");
+      console.log("Error fetching route:", err);
+      Alert.alert("Error", "Error fetching route");
     } finally {
       setLoadingRoute(false);
     }
@@ -120,10 +168,16 @@ export default function HomeScreen() {
 
   // BOOK RIDE
   const handleBookRide = async () => {
-    if (!routeData.routeDistance) return Alert.alert("Search destination first");
+    if (!routeData.routeDistance || routeData.routeDistance <= 0) {
+      Alert.alert("Invalid", "Please search a destination to get distance.");
+      return;
+    }
+    if (!routeData.routePrice || routeData.routePrice <= 0) {
+      Alert.alert("Invalid", "Price cannot be 0. Select vehicle or recalc.");
+      return;
+    }
 
     setSaving(true);
-
     try {
       const payload = {
         vehicleType,
@@ -135,16 +189,18 @@ export default function HomeScreen() {
       const res = await axios.post(`${getBaseUrl()}/api/rides/save`, payload);
 
       showPopup("success", "Ride booked successfully!");
-      Alert.alert("Success", res.data?.message || "Saved!");
+      Alert.alert("Success", res.data?.message || "Ride saved successfully");
     } catch (err) {
-      showPopup("error", "Error saving ride");
-      Alert.alert("Error", "Failed to save");
+      console.log("Save error:", err?.response ?? err);
+      const serverMessage = err?.response?.data || "Could not save ride. Try again.";
+      showPopup("error", "Could not save ride");
+      Alert.alert("Failed", String(serverMessage));
     } finally {
       setSaving(false);
     }
   };
 
-  // WEB MAP
+  // WEB MAP (lazy require)
   let WebMap = null;
   if (isWeb) {
     try {
@@ -165,23 +221,24 @@ export default function HomeScreen() {
               </Marker>
             )}
 
-            {routeData.routeCoords.length > 0 && (
-              <Polyline positions={routeData.routeCoords} />
-            )}
+            {routeData.routeCoords.length > 0 && <Polyline positions={routeData.routeCoords} />}
           </MapContainer>
         </View>
       );
-    } catch (err) {}
+    } catch (err) {
+      console.log("Leaflet error:", err);
+      WebMap = null;
+    }
   }
 
   return (
     <View style={styles.container}>
+      {/* popup rendered near top so it sits above everything */}
+      {popup.visible && <PopupMessage type={popup.type} message={popup.message} />}
+
       {isWeb && WebMap}
       {!isWeb && (
-        <ImageBackground
-          source={require("@/assets/images/map.png")}
-          style={styles.nativeMap}
-        />
+        <ImageBackground source={require("@/assets/images/map.png")} style={styles.nativeMap} />
       )}
 
       {/* TOP BAR */}
@@ -227,9 +284,7 @@ export default function HomeScreen() {
             placeholder="Where would you go?"
             style={styles.searchInput}
             value={routeData.input}
-            onChangeText={(txt) =>
-              setRouteData((prev) => ({ ...prev, input: txt }))
-            }
+            onChangeText={(txt) => setRouteData((prev) => ({ ...prev, input: txt }))}
             returnKeyType="search"
             onSubmitEditing={handleSearchDestination}
           />
@@ -238,16 +293,8 @@ export default function HomeScreen() {
 
         {/* BUTTONS */}
         <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          <TouchableOpacity
-            style={styles.searchBtn}
-            onPress={handleSearchDestination}
-            disabled={loadingRoute}
-          >
-            {loadingRoute ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.searchBtnText}>Search Route</Text>
-            )}
+          <TouchableOpacity style={styles.searchBtn} onPress={handleSearchDestination} disabled={loadingRoute}>
+            {loadingRoute ? <ActivityIndicator color="#fff" /> : <Text style={styles.searchBtnText}>Search Route</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -271,26 +318,11 @@ export default function HomeScreen() {
             {["Bike", "Comfort", "Car"].map((v) => (
               <TouchableOpacity
                 key={v}
-                style={[
-                  styles.vehicleBtn,
-                  vehicleType === v && styles.vehicleActive,
-                ]}
+                style={[styles.vehicleBtn, vehicleType === v && styles.vehicleActive]}
                 onPress={() => setVehicleType(v)}
               >
-                <Ionicons
-                  name={v === "Bike" ? "bicycle" : v === "Car" ? "car" : "bus"}
-                  size={22}
-                  color={vehicleType === v ? "#fff" : "#0A8F5B"}
-                />
-
-                <Text
-                  style={[
-                    styles.vehicleText,
-                    vehicleType === v && styles.vehicleTextActive,
-                  ]}
-                >
-                  {v}
-                </Text>
+                <Ionicons name={v === "Bike" ? "bicycle" : v === "Car" ? "car" : "bus"} size={22} color={vehicleType === v ? "#fff" : "#0A8F5B"} />
+                <Text style={[styles.vehicleText, vehicleType === v && styles.vehicleTextActive]}>{v}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -302,11 +334,7 @@ export default function HomeScreen() {
           onPress={handleBookRide}
           disabled={saving || routeData.routePrice <= 0}
         >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.bookText}>Book Ride</Text>
-          )}
+          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.bookText}>Book Ride</Text>}
         </TouchableOpacity>
       </View>
 
@@ -347,6 +375,22 @@ export default function HomeScreen() {
 =================================== */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3FDF8" },
+
+  // popup
+  popupContainer: {
+    position: "absolute",
+    top: 60,
+    left: 20,
+    right: 20,
+    padding: 14,
+    borderRadius: 10,
+    zIndex: 9999,
+    elevation: 9999,
+    alignItems: "center",
+  },
+  popupSuccess: { backgroundColor: "#0A8F5B" },
+  popupError: { backgroundColor: "#ff4d4d" },
+  popupText: { color: "#fff", fontSize: 15, fontWeight: "600" },
 
   webMap: {
     position: "absolute",
