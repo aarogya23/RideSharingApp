@@ -16,135 +16,83 @@ import {
   View,
 } from "react-native";
 
-/**
- * Full HomeScreen (React Native + Expo)
- * - Uses single state object: routeData
- * - Map only on web (react-leaflet)
- * - Destination search via Nominatim + route via OSRM
- * - Price calculation and POST to backend
- */
-
 export default function HomeScreen() {
+  const [popup, setPopup] = useState({ visible: false, type: "success", message: "" });
 
-
-   const [popup, setPopup] = useState({ visible: false, type: "success", message: "" });
-
-    const showPopup = (type, message) => {
+  const showPopup = (type, message) => {
     setPopup({ visible: true, type, message });
     setTimeout(() => setPopup((prev) => ({ ...prev, visible: false })), 2500);
-    };
+  };
 
-  // SINGLE STATE OBJECT
   const [routeData, setRouteData] = useState({
     input: "",
-    userLocation: null, // [lat, lng]
-    routeCoords: [], // [[lat, lng], ...]
-    routeDistance: 0, // in km (number or string convertible)
-    routePrice: 0, // number or string convertible
+    userLocation: null,
+    routeCoords: [],
+    routeDistance: 0,
+    routePrice: 0,
   });
 
-  // Vehicle selection (separate)
   const [vehicleType, setVehicleType] = useState("Bike");
-
-  // Loading states
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Price rates per km
-  const priceRates = {
-    Bike: 30,
-    Comfort: 80,
-    Car: 60,
-  };
-
+  const priceRates = { Bike: 30, Comfort: 80, Car: 60 };
   const isWeb = Platform.OS === "web";
 
-  // Base URL helper (different for emulators)
-  const getBaseUrl = () => {
-    if (isWeb) return "http://localhost:8084";
-    if (Platform.OS === "android") return "http://localhost:8084"; // Android emulator
-    return "http://localhost:8084"; // iOS simulator / dev device (adjust if needed)
-  };
+  const getBaseUrl = () => "http://localhost:8084";
 
-  // 1) Request location on web (only)
+  // GET LOCATION (WEB ONLY)
   useEffect(() => {
     if (!isWeb) return;
 
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") {
-          Alert.alert("Permission", "Location permission denied");
-          return;
-        }
+        if (status !== "granted") return;
 
         const loc = await Location.getCurrentPositionAsync();
         setRouteData((prev) => ({
           ...prev,
           userLocation: [loc.coords.latitude, loc.coords.longitude],
         }));
-      } catch (err) {
-        console.log("Location error:", err);
-      }
+      } catch (err) {}
     })();
   }, [isWeb]);
 
-  // 2) Recalculate price when vehicleType or routeDistance changes
+  // PRICE RECALCULATE
   useEffect(() => {
     const dist = parseFloat(routeData.routeDistance) || 0;
     const rate = priceRates[vehicleType] || 0;
-    const newPrice = dist ? parseFloat((dist * rate).toFixed(2)) : 0;
 
     setRouteData((prev) => ({
       ...prev,
-      routePrice: newPrice,
+      routePrice: dist ? parseFloat((dist * rate).toFixed(2)) : 0,
     }));
   }, [vehicleType, routeData.routeDistance]);
 
-  // 3) Search destination + fetch route from OSRM
+  // SEARCH DESTINATION
   const handleSearchDestination = async () => {
-    if (!routeData.input.trim()) {
-      Alert.alert("Enter destination");
-      return;
-    }
+    if (!routeData.input.trim()) return Alert.alert("Enter destination");
 
-    // If on web and userLocation not ready
-    if (isWeb && !routeData.userLocation) {
-      Alert.alert("Location unavailable", "Try again when location loads.");
-      return;
-    }
+    if (isWeb && !routeData.userLocation)
+      return Alert.alert("Wait", "Location still loading");
 
     setLoadingRoute(true);
-
     try {
-      // 1) Geocode destination (Nominatim)
-      const q = encodeURIComponent(routeData.input);
       const geoRes = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${q}`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          routeData.input
+        )}`
       );
       const geo = await geoRes.json();
-
-      if (!geo || !geo.length) {
-        Alert.alert("Not found");
-        setLoadingRoute(false);
-        return;
-      }
+      if (!geo.length) return Alert.alert("Not found");
 
       const destLat = parseFloat(geo[0].lat);
       const destLon = parseFloat(geo[0].lon);
 
-      // 2) If we don't have userLocation (native), we can't route — inform user
-      if (!routeData.userLocation) {
-        // On native you might want to use a fallback or let user enter manually
-        Alert.alert(
-          "User location missing",
-          "App couldn't get your location. Enter manually (dev) or test on web."
-        );
-        setLoadingRoute(false);
-        return;
-      }
+      if (!routeData.userLocation)
+        return Alert.alert("Location missing", "Run on browser for now.");
 
-      // Build OSRM URL (lon,lat order)
       const fromLon = routeData.userLocation[1];
       const fromLat = routeData.userLocation[0];
 
@@ -153,17 +101,9 @@ export default function HomeScreen() {
       const res = await fetch(url);
       const route = await res.json();
 
-      if (!route.routes?.length) {
-        Alert.alert("Route not found");
-        setLoadingRoute(false);
-        return;
-      }
+      if (!route.routes?.length) return Alert.alert("Route not found");
 
-      const coords = route.routes[0].geometry.coordinates.map((c) => [
-        c[1],
-        c[0],
-      ]); // convert [lon,lat] -> [lat,lon]
-
+      const coords = route.routes[0].geometry.coordinates.map((c) => [c[1], c[0]]);
       const km = parseFloat((route.routes[0].distance / 1000).toFixed(2));
 
       setRouteData((prev) => ({
@@ -172,74 +112,43 @@ export default function HomeScreen() {
         routeDistance: km,
       }));
     } catch (err) {
-      console.log("Error fetching route:", err);
-      Alert.alert("Error", "Error fetching route");
+      Alert.alert("Error", "Failed route");
     } finally {
       setLoadingRoute(false);
     }
   };
 
-  // 4) POST to backend to save ride
+  // BOOK RIDE
   const handleBookRide = async () => {
-    // Validate price > 0
-    if (!routeData.routeDistance || routeData.routeDistance <= 0) {
-      Alert.alert("Invalid", "Please search a destination to get distance.");
-      return;
-    }
-    if (!routeData.routePrice || routeData.routePrice <= 0) {
-      Alert.alert("Invalid", "Price cannot be 0. Select vehicle or recalc.");
-      return;
-    }
+    if (!routeData.routeDistance) return Alert.alert("Search destination first");
 
     setSaving(true);
 
     try {
-      // payload shape matches backend example (adjust keys if your backend expects different names)
       const payload = {
-        vehicleType: vehicleType,
+        vehicleType,
         distanceKm: routeData.routeDistance,
         price: routeData.routePrice,
         destinationName: routeData.input,
       };
 
-      // POST
-      const base = getBaseUrl();
-      const response = await axios.post(`${base}/api/rides/save`, payload);
+      const res = await axios.post(`${getBaseUrl()}/api/rides/save`, payload);
 
-      // Backend might return string message or object; handle both
-      const respData = response?.data;
-      const message =
-        typeof respData === "string"
-          ? respData
-          : respData?.message || "Ride saved successfully";
-
-      
       showPopup("success", "Ride booked successfully!");
-
-
-      Alert.alert("Success", message);
+      Alert.alert("Success", res.data?.message || "Saved!");
     } catch (err) {
-      console.log("Save error:", err?.response ?? err);
-      const serverMessage =
-        err?.response?.data || "Could not save ride. Try again.";
-      Alert.alert("Failed", String(serverMessage));
-      showPopup("error", "Could not save ride");
+      showPopup("error", "Error saving ride");
+      Alert.alert("Error", "Failed to save");
     } finally {
       setSaving(false);
     }
   };
 
-  // 5) Web map renderer (lazy require)
+  // WEB MAP
   let WebMap = null;
   if (isWeb) {
     try {
-      const {
-        MapContainer,
-        TileLayer,
-        Marker,
-        Popup,
-        Polyline,
-      } = require("react-leaflet");
+      const { MapContainer, TileLayer, Marker, Popup, Polyline } = require("react-leaflet");
 
       WebMap = (
         <View style={styles.webMap}>
@@ -262,15 +171,11 @@ export default function HomeScreen() {
           </MapContainer>
         </View>
       );
-    } catch (err) {
-      console.log("Leaflet error:", err);
-      WebMap = null;
-    }
+    } catch (err) {}
   }
 
   return (
     <View style={styles.container}>
-      {/* Map (web) or static image (native) */}
       {isWeb && WebMap}
       {!isWeb && (
         <ImageBackground
@@ -279,44 +184,42 @@ export default function HomeScreen() {
         />
       )}
 
+      {/* TOP BAR */}
       <View style={styles.topRow}>
         <Stack.Screen options={{ headerShown: false }} />
+
         <TouchableOpacity style={styles.menuBtn}>
           <Ionicons name="menu" size={22} color="#0A8F5B" />
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.bellBtn}>
           <Ionicons name="notifications-outline" size={22} color="#0A8F5B" />
         </TouchableOpacity>
       </View>
 
-      {/* Distance + Price */}
+      {/* INFO */}
       {routeData.routeDistance > 0 && (
         <View style={styles.infoBox}>
-          <Text style={styles.infoText}>
-            Distance: {routeData.routeDistance} km
-          </Text>
+          <Text style={styles.infoText}>Distance: {routeData.routeDistance} km</Text>
           <Text style={styles.infoText}>
             Price ({vehicleType}): Rs {routeData.routePrice}
           </Text>
         </View>
       )}
 
-      {/* Destination input */}
+      {/* INPUT ABOVE CARD */}
       <View style={styles.rentalInputContainer}>
         <TextInput
           style={styles.rentalInput}
           placeholder="Enter your destination..."
           value={routeData.input}
-          onChangeText={(txt) =>
-            setRouteData((prev) => ({ ...prev, input: txt }))
-          }
+          onChangeText={(x) => setRouteData((p) => ({ ...p, input: x }))}
           returnKeyType="search"
           onSubmitEditing={handleSearchDestination}
         />
       </View>
 
-      {/* Search card + vehicle selection */}
-      {/** Show card when we have distance or after search */}
+      {/* CARD */}
       <View style={styles.searchCard}>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={20} color="#7E7E7E" />
@@ -333,7 +236,7 @@ export default function HomeScreen() {
           <Ionicons name="heart-outline" size={20} color="#7E7E7E" />
         </View>
 
-        {/* Search / loading */}
+        {/* BUTTONS */}
         <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
           <TouchableOpacity
             style={styles.searchBtn}
@@ -348,10 +251,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[
-              styles.searchBtn,
-              { backgroundColor: "#0A8F5B", marginLeft: 12 },
-            ]}
+            style={[styles.searchBtn, { backgroundColor: "#0A8F5B", marginLeft: 12 }]}
             onPress={() =>
               setRouteData((prev) => ({
                 ...prev,
@@ -365,7 +265,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Vehicle selection only visible after routeDistance > 0 */}
+        {/* VEHICLE */}
         {routeData.routeDistance > 0 && (
           <View style={styles.vehicleRow}>
             {["Bike", "Comfort", "Car"].map((v) => (
@@ -378,12 +278,11 @@ export default function HomeScreen() {
                 onPress={() => setVehicleType(v)}
               >
                 <Ionicons
-                  name={
-                    v === "Bike" ? "bicycle" : v === "Car" ? "car" : "bus"
-                  }
+                  name={v === "Bike" ? "bicycle" : v === "Car" ? "car" : "bus"}
                   size={22}
                   color={vehicleType === v ? "#fff" : "#0A8F5B"}
                 />
+
                 <Text
                   style={[
                     styles.vehicleText,
@@ -397,7 +296,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Book Ride Button */}
+        {/* BOOK */}
         <TouchableOpacity
           style={[styles.bookBtn, routeData.routePrice <= 0 && { opacity: 0.6 }]}
           onPress={handleBookRide}
@@ -411,10 +310,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-
-      
-
-      {/* Bottom nav (kept minimal) */}
+      {/* BOTTOM NAV */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem}>
           <Ionicons name="home-outline" size={24} color="#00996D" />
@@ -446,7 +342,9 @@ export default function HomeScreen() {
   );
 }
 
-// Styles (kept close to your original)
+/* ===================================
+   STYLES (FULL FINAL VERSION)
+=================================== */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3FDF8" },
 
@@ -492,34 +390,33 @@ const styles = StyleSheet.create({
   infoText: { color: "white", fontSize: 16, fontWeight: "600" },
 
   rentalInputContainer: {
-  position: "absolute",
-  top: 330, // moved up from 360
-  left: 20,
-  right: 20,
-  backgroundColor: "#fff",
-  paddingHorizontal: 10,
-  paddingVertical: 4,
-  borderRadius: 14,
-  zIndex: 5,
-},
+    position: "absolute",
+    top: 330,
+    left: 20,
+    right: 20,
+    backgroundColor: "#fff",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 14,
+    zIndex: 5,
+  },
 
-rentalInput: {
-  padding: 12,
-  top: 8,
-  fontSize: 16,
-},
+  rentalInput: {
+    padding: 12,
+    top: 8,
+    fontSize: 16,
+  },
 
-searchCard: {
-  position: "absolute",
-  top: 390, // moved up from 420
-  left: 20,
-  right: 20,
-  backgroundColor: "#E7F8F0",
-  padding: 18,
-  borderRadius: 16,
-  zIndex: 6,
-},
-
+  searchCard: {
+    position: "absolute",
+    top: 390,
+    left: 20,
+    right: 20,
+    backgroundColor: "#E7F8F0",
+    padding: 18,
+    borderRadius: 16,
+    zIndex: 6,
+  },
 
   searchBox: {
     flexDirection: "row",
@@ -562,8 +459,6 @@ searchCard: {
 
   vehicleActive: { backgroundColor: "#0A8F5B" },
 
-  vehicleImg: { width: 32, height: 32, marginBottom: 6 },
-
   vehicleText: {
     fontSize: 14,
     color: "#0A8F5B",
@@ -592,37 +487,21 @@ searchCard: {
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    elevation: 10,
-    borderTopWidth: 1,
-    borderColor: "#eee",
-    zIndex: 7,
+    paddingBottom: 10,
   },
 
-  navItem: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  navItem: { alignItems: "center" },
 
-  navText: {
-    fontSize: 12,
-    color: "#555",
-  },
+  navText: { color: "#555", fontSize: 12, marginTop: 4 },
+  navTextActive: { color: "#00996D", fontSize: 12, marginTop: 4 },
 
-  navTextActive: {
-    fontSize: 12,
-    color: "#00996D",
-    fontWeight: "600",
+  navCenter: {
+    position: "relative",
   },
-
-  navCenter: { marginBottom: 40 },
 
   centerButton: {
-    width: 60,
-    height: 60,
     backgroundColor: "#00996D",
-    borderRadius: 30,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 5,
+    padding: 14,
+    borderRadius: 40,
   },
 });
