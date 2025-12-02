@@ -1,6 +1,5 @@
-import { Stack } from "expo-router";
 import React, { useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity } from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 export default function RiderSignupScreen() {
   const [form, setForm] = useState({
@@ -12,10 +11,11 @@ export default function RiderSignupScreen() {
     licenseNumber: "",
   });
 
-  const [isSubmitted, setIsSubmitted] = useState(false); // track submission
+  const [isSubmitted, setIsSubmitted] = useState(false); // disable button after success
+  const [successMessage, setSuccessMessage] = useState(""); // message to show on screen
 
   const handleSignup = async () => {
-    if (isSubmitted) return; // prevent multiple clicks
+    if (isSubmitted) return;
 
     // Basic frontend validation
     if (
@@ -26,7 +26,7 @@ export default function RiderSignupScreen() {
       !form.vehicleType ||
       !form.licenseNumber
     ) {
-      Alert.alert("Error", "Please fill all fields");
+      setSuccessMessage("Please fill all fields");
       return;
     }
 
@@ -42,21 +42,30 @@ export default function RiderSignupScreen() {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert("Success", "Your account is successfully registered!");
-        setIsSubmitted(true); // disable the button
+        setSuccessMessage("Your account is successfully registered!");
+        setIsSubmitted(true);
+
+        // hide the message after 3 seconds
+        setTimeout(() => {
+          setSuccessMessage("");
+        }, 3000);
       } else {
-        Alert.alert("Error", data || "Something went wrong");
+        setSuccessMessage(data || "Something went wrong");
       }
     } catch (error) {
-      Alert.alert("Error", error.message);
+      setSuccessMessage(error.message);
     }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-
-        <Stack.Screen options={{ headerShown: false }} />
       <Text style={styles.title}>Rider Signup</Text>
+
+      {successMessage !== "" && (
+        <View style={styles.messageContainer}>
+          <Text style={styles.successText}>{successMessage}</Text>
+        </View>
+      )}
 
       <TextInput
         style={styles.input}
@@ -106,7 +115,7 @@ export default function RiderSignupScreen() {
       <TouchableOpacity
         style={[styles.button, isSubmitted && { backgroundColor: "#ccc" }]}
         onPress={handleSignup}
-        disabled={isSubmitted} // disable after success
+        disabled={isSubmitted}
       >
         <Text style={styles.buttonText}>{isSubmitted ? "Registered" : "Sign Up"}</Text>
       </TouchableOpacity>
@@ -125,6 +134,19 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: "700",
     marginBottom: 20,
+    textAlign: "center",
+  },
+  messageContainer: {
+    backgroundColor: "#d4edda",
+    borderColor: "#c3e6cb",
+    borderWidth: 1,
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 15,
+  },
+  successText: {
+    color: "#155724",
+    fontSize: 16,
     textAlign: "center",
   },
   input: {
