@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity } from "react-native";
 
 export default function RiderSignupScreen() {
@@ -11,7 +12,11 @@ export default function RiderSignupScreen() {
     licenseNumber: "",
   });
 
+  const [isSubmitted, setIsSubmitted] = useState(false); // track submission
+
   const handleSignup = async () => {
+    if (isSubmitted) return; // prevent multiple clicks
+
     // Basic frontend validation
     if (
       !form.fullName ||
@@ -37,8 +42,8 @@ export default function RiderSignupScreen() {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert("Success", "Driver registered successfully!");
-        // Optionally, navigate to login screen
+        Alert.alert("Success", "Your account is successfully registered!");
+        setIsSubmitted(true); // disable the button
       } else {
         Alert.alert("Error", data || "Something went wrong");
       }
@@ -49,6 +54,8 @@ export default function RiderSignupScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+
+        <Stack.Screen options={{ headerShown: false }} />
       <Text style={styles.title}>Rider Signup</Text>
 
       <TextInput
@@ -56,6 +63,7 @@ export default function RiderSignupScreen() {
         placeholder="Full Name"
         value={form.fullName}
         onChangeText={(text) => setForm({ ...form, fullName: text })}
+        editable={!isSubmitted}
       />
       <TextInput
         style={styles.input}
@@ -63,12 +71,14 @@ export default function RiderSignupScreen() {
         value={form.email}
         onChangeText={(text) => setForm({ ...form, email: text })}
         keyboardType="email-address"
+        editable={!isSubmitted}
       />
       <TextInput
         style={styles.input}
         placeholder="Username"
         value={form.username}
         onChangeText={(text) => setForm({ ...form, username: text })}
+        editable={!isSubmitted}
       />
       <TextInput
         style={styles.input}
@@ -76,22 +86,29 @@ export default function RiderSignupScreen() {
         secureTextEntry
         value={form.password}
         onChangeText={(text) => setForm({ ...form, password: text })}
+        editable={!isSubmitted}
       />
       <TextInput
         style={styles.input}
         placeholder="Vehicle Type"
         value={form.vehicleType}
         onChangeText={(text) => setForm({ ...form, vehicleType: text })}
+        editable={!isSubmitted}
       />
       <TextInput
         style={styles.input}
         placeholder="License Number"
         value={form.licenseNumber}
         onChangeText={(text) => setForm({ ...form, licenseNumber: text })}
+        editable={!isSubmitted}
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleSignup}>
-        <Text style={styles.buttonText}>Sign Up</Text>
+      <TouchableOpacity
+        style={[styles.button, isSubmitted && { backgroundColor: "#ccc" }]}
+        onPress={handleSignup}
+        disabled={isSubmitted} // disable after success
+      >
+        <Text style={styles.buttonText}>{isSubmitted ? "Registered" : "Sign Up"}</Text>
       </TouchableOpacity>
     </ScrollView>
   );
