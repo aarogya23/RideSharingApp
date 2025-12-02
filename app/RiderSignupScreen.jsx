@@ -1,5 +1,5 @@
+import { Stack } from "expo-router";
 import React, { useState } from "react";
-
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity } from "react-native";
 
 export default function RiderSignupScreen() {
