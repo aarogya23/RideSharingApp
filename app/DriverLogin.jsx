@@ -15,11 +15,11 @@ export default function DriverLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [driver, setDriver] = useState(null);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const handleSubmit = async () => {
     setError("");
-    setDriver(null);
+    setSuccessMessage("");
 
     if (!usernameOrEmail.trim()) {
       setError("Username or email is required");
@@ -49,9 +49,15 @@ export default function DriverLogin() {
         return;
       }
 
-      const data = JSON.parse(text);
-      setDriver(data.driver || data);
+      // Login success
+      setSuccessMessage("Login Successful 🎉");
       setLoading(false);
+
+      // Auto hide after 2 seconds
+      setTimeout(() => {
+        setSuccessMessage("");
+      }, 2000);
+
     } catch (err) {
       setError("Network or server error.");
       setLoading(false);
@@ -95,6 +101,10 @@ export default function DriverLogin() {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
+        {successMessage ? (
+          <Text style={styles.success}>{successMessage}</Text>
+        ) : null}
+
         <TouchableOpacity
           style={styles.submit}
           onPress={handleSubmit}
@@ -106,13 +116,6 @@ export default function DriverLogin() {
             <Text style={styles.submitText}>Login</Text>
           )}
         </TouchableOpacity>
-
-        {driver && (
-          <View style={styles.success}>
-            <Text style={{ fontWeight: "bold" }}>Login successful!</Text>
-            <Text>{JSON.stringify(driver, null, 2)}</Text>
-          </View>
-        )}
       </View>
     </View>
   );
@@ -193,8 +196,11 @@ const styles = StyleSheet.create({
   },
   success: {
     backgroundColor: "#ecfdf5",
-    padding: 12,
+    color: "#065f46",
+    padding: 10,
     borderRadius: 8,
-    marginTop: 15,
+    marginTop: 10,
+    textAlign: "center",
+    fontWeight: "600",
   },
 });
