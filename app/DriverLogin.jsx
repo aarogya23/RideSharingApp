@@ -1,4 +1,13 @@
+import { Stack } from "expo-router";
 import React, { useState } from "react";
+import {
+    ActivityIndicator,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from "react-native";
 
 export default function DriverLogin() {
   const [usernameOrEmail, setUsernameOrEmail] = useState("");
@@ -8,12 +17,10 @@ export default function DriverLogin() {
   const [error, setError] = useState("");
   const [driver, setDriver] = useState(null);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setError("");
     setDriver(null);
 
-    // client-side validation
     if (!usernameOrEmail.trim()) {
       setError("Username or email is required");
       return;
@@ -27,150 +34,167 @@ export default function DriverLogin() {
     try {
       const res = await fetch("http://localhost:8084/api/driver/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ usernameOrEmail: usernameOrEmail.trim(), password }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          usernameOrEmail: usernameOrEmail.trim(),
+          password,
+        }),
       });
 
+      const text = await res.text();
+
       if (!res.ok) {
-        // backend sometimes returns plain text error message
-        const text = await res.text();
-        setError(text || `Login failed (status ${res.status})`);
+        setError(text || "Login failed");
         setLoading(false);
         return;
       }
 
-      const data = await res.json();
-      // expected response structure:
-      // { message: "Login successful", driver: { ... } }
+      const data = JSON.parse(text);
       setDriver(data.driver || data);
       setLoading(false);
     } catch (err) {
-      console.error("Login error:", err);
-      setError("Network or server error. Check backend is running.");
+      setError("Network or server error.");
       setLoading(false);
     }
   };
 
   return (
-    <div style={styles.container}>
-      <form onSubmit={handleSubmit} style={styles.card}>
-        <h2 style={styles.title}>Driver Login</h2>
+    <View style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
 
-        <label style={styles.label}>Username or Email</label>
-        <input
+      <View style={styles.card}>
+        <Text style={styles.title}>Driver Login</Text>
+
+        <Text style={styles.label}>Username or Email</Text>
+        <TextInput
           style={styles.input}
           value={usernameOrEmail}
-          onChange={(e) => setUsernameOrEmail(e.target.value)}
+          onChangeText={setUsernameOrEmail}
           placeholder="username or email"
-          autoComplete="username"
         />
 
-        <label style={styles.label}>Password</label>
-        <div style={styles.passwordRow}>
-          <input
-            style={{ ...styles.input, marginRight: 8 }}
-            type={showPassword ? "text" : "password"}
+        <Text style={styles.label}>Password</Text>
+
+        <View style={styles.passwordRow}>
+          <TextInput
+            style={styles.passwordInput}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChangeText={setPassword}
             placeholder="password"
-            autoComplete="current-password"
+            secureTextEntry={!showPassword}
           />
-          <button
-            type="button"
-            onClick={() => setShowPassword((s) => !s)}
+          <TouchableOpacity
+            onPress={() => setShowPassword(!showPassword)}
             style={styles.toggleBtn}
           >
-            {showPassword ? "Hide" : "Show"}
-          </button>
-        </div>
+            <Text style={styles.toggleText}>
+              {showPassword ? "Hide" : "Show"}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-        {error && <div style={styles.error}>{error}</div>}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <button type="submit" style={styles.submit} disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
-        </button>
+        <TouchableOpacity
+          style={styles.submit}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.submitText}>Login</Text>
+          )}
+        </TouchableOpacity>
 
         {driver && (
-          <div style={styles.success}>
-            <strong>Login successful — driver info:</strong>
-            <pre style={styles.pre}>{JSON.stringify(driver, null, 2)}</pre>
-          </div>
+          <View style={styles.success}>
+            <Text style={{ fontWeight: "bold" }}>Login successful!</Text>
+            <Text>{JSON.stringify(driver, null, 2)}</Text>
+          </View>
         )}
-      </form>
-    </div>
+      </View>
+    </View>
   );
 }
 
-const styles = {
+const styles = StyleSheet.create({
   container: {
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "center",
+    flex: 1,
+    backgroundColor: "#f3f4f6",
     justifyContent: "center",
-    background: "#f3f4f6",
     padding: 20,
   },
   card: {
-    width: 420,
-    maxWidth: "95%",
+    backgroundColor: "#fff",
+    borderRadius: 12,
     padding: 20,
-    borderRadius: 8,
-    background: "#fff",
-    boxShadow: "0 6px 24px rgba(0,0,0,0.08)",
-    display: "flex",
-    flexDirection: "column",
+    elevation: 5,
   },
-  title: { margin: 0, marginBottom: 16, fontSize: 20, textAlign: "center" },
-  label: { fontSize: 13, marginBottom: 6, marginTop: 8 },
-  input: {
-    padding: "10px 12px",
+  title: {
+    fontSize: 22,
+    textAlign: "center",
+    marginBottom: 20,
+    fontWeight: "600",
+  },
+  label: {
     fontSize: 14,
-    borderRadius: 6,
-    border: "1px solid #d1d5db",
-    outline: "none",
+    marginBottom: 6,
+    marginTop: 10,
+    color: "#374151",
   },
-  passwordRow: { display: "flex", alignItems: "center", marginBottom: 8 },
+  input: {
+    backgroundColor: "#f9fafb",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+  },
+  passwordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  passwordInput: {
+    flex: 1,
+    backgroundColor: "#f9fafb",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+  },
   toggleBtn: {
-    padding: "8px 10px",
+    marginLeft: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 8,
+  },
+  toggleText: {
     fontSize: 13,
-    borderRadius: 6,
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    cursor: "pointer",
+    color: "#111827",
   },
   submit: {
-    marginTop: 12,
-    padding: "10px 12px",
-    fontSize: 15,
-    borderRadius: 6,
-    border: "none",
-    background: "#111827",
+    backgroundColor: "#111827",
+    padding: 14,
+    borderRadius: 8,
+    marginTop: 15,
+  },
+  submitText: {
     color: "#fff",
-    cursor: "pointer",
+    textAlign: "center",
+    fontSize: 16,
   },
   error: {
-    marginTop: 10,
+    backgroundColor: "#fee2e2",
     color: "#b91c1c",
-    background: "#fee2e2",
-    padding: 8,
-    borderRadius: 6,
-    fontSize: 13,
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 10,
   },
   success: {
-    marginTop: 12,
-    color: "#064e3b",
-    background: "#ecfdf5",
+    backgroundColor: "#ecfdf5",
     padding: 12,
-    borderRadius: 6,
-    fontSize: 13,
+    borderRadius: 8,
+    marginTop: 15,
   },
-  pre: {
-    marginTop: 8,
-    background: "#f9fafb",
-    padding: 8,
-    borderRadius: 6,
-    overflowX: "auto",
-  },
-};
+});
