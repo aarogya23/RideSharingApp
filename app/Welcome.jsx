@@ -92,7 +92,7 @@ export default function WelcomeScreen() {
               if (selectedMode === "passenger") {
                 router.push({ pathname: "/login", params: { mode: "passenger" } });
               } else if (selectedMode === "rider") {
-                router.push({ pathname: "/Rider", params: { mode: "rider" } });
+                router.push({ pathname: "/DriverLogin", params: { mode: "rider" } });
               } else {
                 alert("Please select a mode first");
               }}
