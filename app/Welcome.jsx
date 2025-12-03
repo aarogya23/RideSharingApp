@@ -88,8 +88,14 @@ export default function WelcomeScreen() {
 
           <TouchableOpacity
             style={styles.loginBtn}
-            onPress={() =>
-              router.push({ pathname: "/login", params: { mode: selectedMode } })
+            onPress={() =>{
+              if (selectedMode === "passenger") {
+                router.push({ pathname: "/login", params: { mode: "passenger" } });
+              } else if (selectedMode === "rider") {
+                router.push({ pathname: "/Rider", params: { mode: "rider" } });
+              } else {
+                alert("Please select a mode first");
+              }}
             }
           >
             <Text style={styles.loginText}>Log In</Text>
