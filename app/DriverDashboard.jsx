@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Stack } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
     Animated,
@@ -39,6 +40,9 @@ export default function DriverDashboard() {
 
   return (
     <View style={styles.container}>
+
+    <Stack.Screen options={{ headerShown: false }} />
+    
       {/* TOP HEADER */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.menuBtn} onPress={openSidebar}>
@@ -228,35 +232,53 @@ const styles = StyleSheet.create({
   },
 
   /* BOTTOM NAV */
-  bottomNav: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 25,
-    alignItems: "center",
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-    position: "absolute",
-    bottom: 0,
-    width: "100%",
-    elevation: 20,
-  },
-  nav: { fontSize: 12, color: "#6b7280", textAlign: "center" },
-  navActive: {
-    fontSize: 12,
-    color: "#16a34a",
-    textAlign: "center",
-    fontWeight: "700",
-  },
-  centerIcon: {
-    backgroundColor: "#10b981",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: -30,
-    elevation: 6,
-  },
+ /* BOTTOM NAV */
+bottomNav: {
+  flexDirection: "row",
+  justifyContent: "space-around",
+  alignItems: "center",
+  paddingVertical: 12,
+  backgroundColor: "#ffffff",
+  position: "absolute",
+  bottom: 0,
+  width: "100%",
+  elevation: 15,
+  shadowColor: "#000",
+  shadowOpacity: 0.08,
+  shadowRadius: 6,
+  borderTopWidth: 0.3,
+  borderColor: "#e5e7eb",
+},
+
+nav: {
+  fontSize: 12,
+  color: "#6b7280",
+  textAlign: "center",
+  marginTop: 4,
+},
+
+navActive: {
+  fontSize: 12,
+  color: "#16a34a",
+  fontWeight: "bold",
+  textAlign: "center",
+  marginTop: 4,
+},
+
+centerIcon: {
+  backgroundColor: "#10b981",
+  width: 65,
+  height: 65,
+  borderRadius: 32.5,
+  justifyContent: "center",
+  alignItems: "center",
+  marginTop: -35,
+  elevation: 10,
+  shadowColor: "#000",
+  shadowOpacity: 0.15,
+  shadowRadius: 8,
+},
+
 
   /* SIDEBAR */
   sidebar: {
