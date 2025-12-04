@@ -1,15 +1,17 @@
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function DriverLogin() {
+  const router = useRouter();
+
   const [usernameOrEmail, setUsernameOrEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -53,9 +55,10 @@ export default function DriverLogin() {
       setSuccessMessage("Login Successful 🎉");
       setLoading(false);
 
-      // Auto hide after 2 seconds
+      // Redirect to DriverDashboard after 2 seconds
       setTimeout(() => {
         setSuccessMessage("");
+        router.replace("/DriverDashboard");
       }, 2000);
 
     } catch (err) {
@@ -120,6 +123,8 @@ export default function DriverLogin() {
     </View>
   );
 }
+
+// ------------------- STYLES --------------------
 
 const styles = StyleSheet.create({
   container: {
