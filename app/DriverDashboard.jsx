@@ -1,23 +1,46 @@
 import { Ionicons } from "@expo/vector-icons";
+import axios from "axios";
 import { Stack } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-    Animated,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function DriverDashboard() {
   const [isOnline, setIsOnline] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [rides, setRides] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const slideAnim = useRef(new Animated.Value(-250)).current; // sidebar width
+  const slideAnim = useRef(new Animated.Value(-250)).current;
 
   const toggleStatus = () => setIsOnline(!isOnline);
+
+  // 🔥 FETCH DATA FROM BACKEND
+  useEffect(() => {
+    fetchRides();
+  }, []);
+
+  const fetchRides = async () => {
+    try {
+      const response = await axios.get("http://localhost:8084/api/ride/all");
+      if (Array.isArray(response.data)) {
+        setRides(response.data);
+      } else {
+        setRides([]);
+      }
+    } catch (error) {
+      console.log("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // OPEN SIDEBAR
   const openSidebar = () => {
@@ -40,10 +63,9 @@ export default function DriverDashboard() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
 
-    <Stack.Screen options={{ headerShown: false }} />
-    
-      {/* TOP HEADER */}
+      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.menuBtn} onPress={openSidebar}>
           <Ionicons name="menu" size={26} color="#000" />
@@ -68,28 +90,42 @@ export default function DriverDashboard() {
         </Text>
       </Pressable>
 
-      {/* MAIN SCROLL CONTENT */}
+      {/* RIDE LIST */}
       <ScrollView contentContainerStyle={styles.scrollArea}>
-        <Text style={styles.sectionTitle}>Recent Activities</Text>
+        <Text style={styles.sectionTitle}>Recent Rides</Text>
 
-        {Array.from({ length: 10 }).map((_, i) => (
-          <View key={i} style={styles.card}>
-            <View style={styles.cardLeft}>
-              <Ionicons name="location-sharp" size={22} color="#374151" />
-              <View>
-                <Text style={styles.cardTitle}>Ride #{i + 1}</Text>
-                <Text style={styles.cardSubtitle}>Location: Kathmandu</Text>
+        {loading ? (
+          <Text>Loading rides...</Text>
+        ) : rides.length === 0 ? (
+          <Text>No rides found</Text>
+        ) : (
+          rides.map((ride, i) => (
+            <View key={i} style={styles.card}>
+              <View style={styles.cardLeft}>
+                <Ionicons name="location-sharp" size={22} color="#374151" />
+                <View>
+                  <Text style={styles.cardTitle}>
+                    Destination: {ride.destinationName}
+                  </Text>
+                  <Text style={styles.cardSubtitle}>
+                    Vehicle: {ride.vehicleType}
+                  </Text>
+                  <Text style={styles.cardSubtitle}>
+                    Distance: {ride.distanceKm} km
+                  </Text>
+                  <Text style={styles.cardSubtitle}>Price: Rs {ride.price}</Text>
+                </View>
               </View>
-            </View>
 
-            <TouchableOpacity>
-              <Ionicons name="chevron-forward" size={22} color="#d00000" />
-            </TouchableOpacity>
-          </View>
-        ))}
+              <TouchableOpacity>
+                <Ionicons name="chevron-forward" size={22} color="#d00000" />
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
       </ScrollView>
 
-      {/* BOTTOM NAVIGATION */}
+      {/* BOTTOM NAV */}
       <View style={styles.bottomNav}>
         <TouchableOpacity>
           <Ionicons name="home-outline" size={22} color="#16a34a" />
@@ -116,12 +152,12 @@ export default function DriverDashboard() {
         </TouchableOpacity>
       </View>
 
-      {/* DIM BACKDROP */}
+      {/* OVERLAY */}
       {sidebarOpen && (
         <Pressable style={styles.overlay} onPress={closeSidebar} />
       )}
 
-      {/* SIDEBAR MENU */}
+      {/* SIDEBAR */}
       <Animated.View style={[styles.sidebar, { left: slideAnim }]}>
         <Text style={styles.sidebarTitle}>Menu</Text>
 
@@ -157,7 +193,6 @@ export default function DriverDashboard() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f3f4f6" },
 
-  /* HEADER */
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -182,7 +217,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  /* ONLINE OFFLINE BUTTON */
   statusBtn: {
     alignSelf: "center",
     marginTop: 15,
@@ -197,7 +231,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  /* SCROLL CONTENT */
   scrollArea: {
     padding: 20,
     paddingBottom: 120,
@@ -209,7 +242,6 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
 
-  /* CARD STYLE */
   card: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -231,56 +263,44 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  /* BOTTOM NAV */
- /* BOTTOM NAV */
-bottomNav: {
-  flexDirection: "row",
-  justifyContent: "space-around",
-  alignItems: "center",
-  paddingVertical: 12,
-  backgroundColor: "#ffffff",
-  position: "absolute",
-  bottom: 0,
-  width: "100%",
-  elevation: 15,
-  shadowColor: "#000",
-  shadowOpacity: 0.08,
-  shadowRadius: 6,
-  borderTopWidth: 0.3,
-  borderColor: "#e5e7eb",
-},
+  bottomNav: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingVertical: 12,
+    backgroundColor: "#ffffff",
+    position: "absolute",
+    bottom: 0,
+    width: "100%",
+    elevation: 15,
+    borderTopWidth: 0.3,
+    borderColor: "#e5e7eb",
+  },
+  nav: {
+    fontSize: 12,
+    color: "#6b7280",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  navActive: {
+    fontSize: 12,
+    color: "#16a34a",
+    fontWeight: "bold",
+    textAlign: "center",
+    marginTop: 4,
+  },
 
-nav: {
-  fontSize: 12,
-  color: "#6b7280",
-  textAlign: "center",
-  marginTop: 4,
-},
+  centerIcon: {
+    backgroundColor: "#10b981",
+    width: 65,
+    height: 65,
+    borderRadius: 32.5,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: -35,
+    elevation: 10,
+  },
 
-navActive: {
-  fontSize: 12,
-  color: "#16a34a",
-  fontWeight: "bold",
-  textAlign: "center",
-  marginTop: 4,
-},
-
-centerIcon: {
-  backgroundColor: "#10b981",
-  width: 65,
-  height: 65,
-  borderRadius: 32.5,
-  justifyContent: "center",
-  alignItems: "center",
-  marginTop: -35,
-  elevation: 10,
-  shadowColor: "#000",
-  shadowOpacity: 0.15,
-  shadowRadius: 8,
-},
-
-
-  /* SIDEBAR */
   sidebar: {
     position: "absolute",
     top: 0,
@@ -308,7 +328,6 @@ centerIcon: {
     color: "#111",
   },
 
-  /* OVERLAY */
   overlay: {
     position: "absolute",
     top: 0,
