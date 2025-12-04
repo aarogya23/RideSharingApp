@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
+    Animated,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -11,23 +12,42 @@ import {
 
 export default function DriverDashboard() {
   const [isOnline, setIsOnline] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const toggleStatus = () => {
-    setIsOnline(!isOnline);
+  const slideAnim = useRef(new Animated.Value(-250)).current; // sidebar width
+
+  const toggleStatus = () => setIsOnline(!isOnline);
+
+  // OPEN SIDEBAR
+  const openSidebar = () => {
+    setSidebarOpen(true);
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  // CLOSE SIDEBAR
+  const closeSidebar = () => {
+    Animated.timing(slideAnim, {
+      toValue: -250,
+      duration: 250,
+      useNativeDriver: false,
+    }).start(() => setSidebarOpen(false));
   };
 
   return (
     <View style={styles.container}>
-      
       {/* TOP HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.menuBtn}>
+        <TouchableOpacity style={styles.menuBtn} onPress={openSidebar}>
           <Ionicons name="menu" size={26} color="#000" />
         </TouchableOpacity>
 
         <Text style={styles.headerText}>Dashboard</Text>
 
-        <View style={{ width: 30 }} /> 
+        <View style={{ width: 30 }} />
       </View>
 
       {/* ONLINE / OFFLINE BUTTON */}
@@ -36,9 +56,7 @@ export default function DriverDashboard() {
         android_ripple={{ color: "#ffffff40" }}
         style={[
           styles.statusBtn,
-          {
-            backgroundColor: isOnline ? "#16a34a" : "#dc2626",
-          },
+          { backgroundColor: isOnline ? "#16a34a" : "#dc2626" },
         ]}
       >
         <Text style={styles.statusBtnText}>
@@ -48,7 +66,6 @@ export default function DriverDashboard() {
 
       {/* MAIN SCROLL CONTENT */}
       <ScrollView contentContainerStyle={styles.scrollArea}>
-        
         <Text style={styles.sectionTitle}>Recent Activities</Text>
 
         {Array.from({ length: 10 }).map((_, i) => (
@@ -57,9 +74,7 @@ export default function DriverDashboard() {
               <Ionicons name="location-sharp" size={22} color="#374151" />
               <View>
                 <Text style={styles.cardTitle}>Ride #{i + 1}</Text>
-                <Text style={styles.cardSubtitle}>
-                  Location: Kathmandu, Nepal
-                </Text>
+                <Text style={styles.cardSubtitle}>Location: Kathmandu</Text>
               </View>
             </View>
 
@@ -68,7 +83,6 @@ export default function DriverDashboard() {
             </TouchableOpacity>
           </View>
         ))}
-
       </ScrollView>
 
       {/* BOTTOM NAVIGATION */}
@@ -98,6 +112,40 @@ export default function DriverDashboard() {
         </TouchableOpacity>
       </View>
 
+      {/* DIM BACKDROP */}
+      {sidebarOpen && (
+        <Pressable style={styles.overlay} onPress={closeSidebar} />
+      )}
+
+      {/* SIDEBAR MENU */}
+      <Animated.View style={[styles.sidebar, { left: slideAnim }]}>
+        <Text style={styles.sidebarTitle}>Menu</Text>
+
+        <TouchableOpacity style={styles.sidebarItem}>
+          <Ionicons name="home-outline" size={22} />
+          <Text style={styles.sidebarText}>Dashboard</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.sidebarItem}>
+          <Ionicons name="car-outline" size={22} />
+          <Text style={styles.sidebarText}>My Rides</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.sidebarItem}>
+          <Ionicons name="wallet-outline" size={22} />
+          <Text style={styles.sidebarText}>Earnings</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.sidebarItem}>
+          <Ionicons name="person-outline" size={22} />
+          <Text style={styles.sidebarText}>Profile</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.sidebarItem}>
+          <Ionicons name="log-out-outline" size={22} />
+          <Text style={[styles.sidebarText, { color: "red" }]}>Logout</Text>
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 }
@@ -157,7 +205,7 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
 
-  /* CARD STYLE (LIKE SCREENSHOT) */
+  /* CARD STYLE */
   card: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -167,11 +215,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     elevation: 2,
   },
-  cardLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
+  cardLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   cardTitle: {
     fontSize: 15,
     fontWeight: "600",
@@ -196,11 +240,7 @@ const styles = StyleSheet.create({
     width: "100%",
     elevation: 20,
   },
-  nav: {
-    fontSize: 12,
-    color: "#6b7280",
-    textAlign: "center",
-  },
+  nav: { fontSize: 12, color: "#6b7280", textAlign: "center" },
   navActive: {
     fontSize: 12,
     color: "#16a34a",
@@ -216,5 +256,44 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: -30,
     elevation: 6,
+  },
+
+  /* SIDEBAR */
+  sidebar: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    width: 250,
+    backgroundColor: "#fff",
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    elevation: 30,
+    zIndex: 999,
+  },
+  sidebarTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginBottom: 20,
+  },
+  sidebarItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+  },
+  sidebarText: {
+    fontSize: 16,
+    color: "#111",
+  },
+
+  /* OVERLAY */
+  overlay: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    right: 0,
+    left: 0,
+    backgroundColor: "#00000060",
+    zIndex: 998,
   },
 });
