@@ -1,17 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { Stack } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Animated,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
 // Popup component
@@ -32,7 +33,12 @@ const PopupMessage = ({ type = "success", message = "" }) => {
 export default function HomeScreen() {
   const isWeb = Platform.OS === "web";
 
-  const [popup, setPopup] = useState({ visible: false, type: "success", message: "" });
+  const [popup, setPopup] = useState({
+    visible: false,
+    type: "success",
+    message: "",
+  });
+
   const [routeData, setRouteData] = useState({
     input: "",
     userLocation: null,
@@ -40,6 +46,7 @@ export default function HomeScreen() {
     routeDistance: 0,
     routePrice: 0,
   });
+
   const [vehicleType, setVehicleType] = useState("Bike");
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [drivers, setDrivers] = useState([]);
@@ -49,40 +56,42 @@ export default function HomeScreen() {
 
   const priceRates = { Bike: 30, Comfort: 80, Car: 60 };
 
-
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
   const slideAnim = useRef(new Animated.Value(-250)).current;
 
   const showPopup = (type, message) => {
     setPopup({ visible: true, type, message });
-    setTimeout(() => setPopup({ visible: false, type: "", message: "" }), 2500);
+    setTimeout(
+      () => setPopup({ visible: false, type: "", message: "" }),
+      2500
+    );
   };
 
-
   // OPEN SIDEBAR
-    const openSidebar = () => {
-      setSidebarOpen(true);
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: false,
-      }).start();
-    };
-  
-    // CLOSE SIDEBAR
-    const closeSidebar = () => {
-      Animated.timing(slideAnim, {
-        toValue: -250,
-        duration: 250,
-        useNativeDriver: false,
-      }).start(() => setSidebarOpen(false));
-    };
+  const openSidebar = () => {
+    setSidebarOpen(true);
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  // CLOSE SIDEBAR
+  const closeSidebar = () => {
+    Animated.timing(slideAnim, {
+      toValue: -250,
+      duration: 250,
+      useNativeDriver: false,
+    }).start(() => setSidebarOpen(false));
+  };
+
   // Get user location
   useEffect(() => {
     (async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
+        const { status } =
+          await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") return;
 
         const loc = await Location.getCurrentPositionAsync();
@@ -110,6 +119,7 @@ export default function HomeScreen() {
   const loadNearbyDrivers = () => {
     if (!routeData.userLocation) return;
     const [lat, lon] = routeData.userLocation;
+
     setDrivers([
       {
         id: 1,
@@ -137,11 +147,18 @@ export default function HomeScreen() {
     try {
       const [uLat, uLon] = routeData.userLocation;
       const [dLat, dLon] = driver.location;
+
       const url = `https://router.project-osrm.org/route/v1/driving/${dLon},${dLat};${uLon},${uLat}?overview=full&geometries=geojson`;
+
       const res = await fetch(url);
       const data = await res.json();
+
       if (data.routes?.length) {
-        const coords = data.routes[0].geometry.coordinates.map((c) => [c[1], c[0]]);
+        const coords = data.routes[0].geometry.coordinates.map((c) => [
+          c[1],
+          c[0],
+        ]);
+
         setDriverRoute(coords);
       }
     } catch (err) {
@@ -159,10 +176,14 @@ export default function HomeScreen() {
       Alert.alert("Location unavailable");
       return;
     }
+
     setLoadingRoute(true);
+
     try {
       const geoRes = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(routeData.input)}`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          routeData.input
+        )}`
       );
       const geo = await geoRes.json();
       if (!geo?.length) {
@@ -170,20 +191,33 @@ export default function HomeScreen() {
         setLoadingRoute(false);
         return;
       }
+
       const destLat = parseFloat(geo[0].lat);
       const destLon = parseFloat(geo[0].lon);
       const [fromLat, fromLon] = routeData.userLocation;
+
       const url = `https://router.project-osrm.org/route/v1/driving/${fromLon},${fromLat};${destLon},${destLat}?overview=full&geometries=geojson`;
+
       const res = await fetch(url);
       const route = await res.json();
+
       if (!route.routes?.length) {
         Alert.alert("Route not found");
         setLoadingRoute(false);
         return;
       }
-      const coords = route.routes[0].geometry.coordinates.map((c) => [c[1], c[0]]);
+
+      const coords = route.routes[0].geometry.coordinates.map((c) => [
+        c[1],
+        c[0],
+      ]);
       const km = parseFloat((route.routes[0].distance / 1000).toFixed(2));
-      setRouteData((prev) => ({ ...prev, routeCoords: coords, routeDistance: km }));
+
+      setRouteData((prev) => ({
+        ...prev,
+        routeCoords: coords,
+        routeDistance: km,
+      }));
 
       loadNearbyDrivers();
     } catch (err) {
@@ -194,7 +228,7 @@ export default function HomeScreen() {
     }
   };
 
-  // Book ride → show driver selection
+  // Book ride
   const handleBookRide = () => {
     if (!routeData.routeDistance || routeData.routeDistance <= 0) {
       Alert.alert("Search a destination first");
@@ -207,21 +241,24 @@ export default function HomeScreen() {
     setShowDriverSelection(true);
   };
 
-  // Web map component
+  // Map component (WEB ONLY)
   let MapComponent = null;
+
   if (isWeb) {
     try {
-      const { MapContainer, TileLayer, Marker, Polyline, Popup } = require("react-leaflet");
+      const {
+        MapContainer,
+        TileLayer,
+        Marker,
+        Polyline,
+        Popup,
+      } = require("react-leaflet");
       const L = require("leaflet");
 
       const userIcon = L.divIcon({
         html: `<div style="
-                width:20px;
-                height:20px;
-                border-radius:50%;
-                background-color:#0A8F5B;
-                border:2px solid #fff;">
-              </div>`,
+              width:20px;height:20px;border-radius:50%;background-color:#0A8F5B;
+              border:2px solid #fff;"></div>`,
         className: "",
         iconSize: [20, 20],
         iconAnchor: [10, 20],
@@ -229,12 +266,8 @@ export default function HomeScreen() {
 
       const driverIcon = L.divIcon({
         html: `<div style="
-                width:20px;
-                height:20px;
-                border-radius:50%;
-                background-color:#ff6f00;
-                border:2px solid #fff;">
-              </div>`,
+              width:20px;height:20px;border-radius:50%;background-color:#ff6f00;
+              border:2px solid #fff;"></div>`,
         className: "",
         iconSize: [20, 20],
         iconAnchor: [10, 20],
@@ -269,8 +302,13 @@ export default function HomeScreen() {
               </Marker>
             ))}
 
-            {routeData.routeCoords.length > 0 && <Polyline positions={routeData.routeCoords} color="blue" />}
-            {driverRoute.length > 0 && <Polyline positions={driverRoute} color="red" />}
+            {routeData.routeCoords.length > 0 && (
+              <Polyline positions={routeData.routeCoords} color="blue" />
+            )}
+
+            {driverRoute.length > 0 && (
+              <Polyline positions={driverRoute} color="red" />
+            )}
           </MapContainer>
         </View>
       );
@@ -282,30 +320,45 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      {popup.visible && <PopupMessage type={popup.type} message={popup.message} />}
+      {popup.visible && (
+        <PopupMessage type={popup.type} message={popup.message} />
+      )}
+
       {isWeb && MapComponent}
       {!isWeb && (
         <View style={{ flex: 1 }}>
-          <Text style={{ textAlign: "center", margin: 10 }}>Native map placeholder</Text>
+          <Text style={{ textAlign: "center", margin: 10 }}>
+            Native map placeholder
+          </Text>
         </View>
       )}
 
-      {/* Top Bar */}
+      {/* TOP BAR */}
       <View style={styles.topRow}>
         <Stack.Screen options={{ headerShown: false }} />
+
         <TouchableOpacity style={styles.menuBtn} onPress={openSidebar}>
           <Ionicons name="menu" size={22} color="#0A8F5B" />
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.bellBtn}>
-          <Ionicons name="notifications-outline" size={22} color="#0A8F5B" />
+          <Ionicons
+            name="notifications-outline"
+            size={22}
+            color="#0A8F5B"
+          />
         </TouchableOpacity>
       </View>
 
-      {/* Info Box */}
+      {/* Distance & Price Box */}
       {routeData.routeDistance > 0 && (
         <View style={styles.infoBox}>
-          <Text style={styles.infoText}>Distance: {routeData.routeDistance} km</Text>
-          <Text style={styles.infoText}>Price ({vehicleType}): Rs {routeData.routePrice}</Text>
+          <Text style={styles.infoText}>
+            Distance: {routeData.routeDistance} km
+          </Text>
+          <Text style={styles.infoText}>
+            Price ({vehicleType}): Rs {routeData.routePrice}
+          </Text>
         </View>
       )}
 
@@ -315,13 +368,15 @@ export default function HomeScreen() {
           style={styles.rentalInput}
           placeholder="Enter your destination..."
           value={routeData.input}
-          onChangeText={(x) => setRouteData((p) => ({ ...p, input: x }))}
+          onChangeText={(x) =>
+            setRouteData((p) => ({ ...p, input: x }))
+          }
           returnKeyType="search"
           onSubmitEditing={handleSearchDestination}
         />
       </View>
 
-      {/* Search / Book Card */}
+      {/* Bottom Card */}
       <View style={styles.searchCard}>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={20} color="#7E7E7E" />
@@ -329,15 +384,23 @@ export default function HomeScreen() {
             placeholder="Where would you go?"
             style={styles.searchInput}
             value={routeData.input}
-            onChangeText={(txt) => setRouteData((p) => ({ ...p, input: txt }))}
+            onChangeText={(txt) =>
+              setRouteData((p) => ({ ...p, input: txt }))
+            }
             returnKeyType="search"
             onSubmitEditing={handleSearchDestination}
           />
           <Ionicons name="heart-outline" size={20} color="#7E7E7E" />
         </View>
 
-        {/* Vehicle Type Selection */}
-        <View style={{ flexDirection: "row", justifyContent: "space-around", marginVertical: 12 }}>
+        {/* Vehicle Type */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-around",
+            marginVertical: 12,
+          }}
+        >
           {["Bike", "Comfort", "Car"].map((type) => (
             <TouchableOpacity
               key={type}
@@ -346,45 +409,118 @@ export default function HomeScreen() {
                 paddingHorizontal: 16,
                 borderRadius: 10,
                 borderWidth: 1,
-                borderColor: vehicleType === type ? "#0A8F5B" : "#ccc",
-                backgroundColor: vehicleType === type ? "#0A8F5B" : "#fff",
+                borderColor:
+                  vehicleType === type ? "#0A8F5B" : "#ccc",
+                backgroundColor:
+                  vehicleType === type ? "#0A8F5B" : "#fff",
               }}
               onPress={() => setVehicleType(type)}
             >
-              <Text style={{ color: vehicleType === type ? "#fff" : "#000", fontWeight: "600" }}>
+              <Text
+                style={{
+                  color: vehicleType === type ? "#fff" : "#000",
+                  fontWeight: "600",
+                }}
+              >
                 {type}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          <TouchableOpacity style={styles.searchBtn} onPress={handleSearchDestination} disabled={loadingRoute}>
-            {loadingRoute ? <ActivityIndicator color="#fff" /> : <Text style={styles.searchBtnText}>Search Route</Text>}
+        {/* Buttons */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+          }}
+        >
+          <TouchableOpacity
+            style={styles.searchBtn}
+            onPress={handleSearchDestination}
+            disabled={loadingRoute}
+          >
+            {loadingRoute ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.searchBtnText}>Search Route</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.searchBtn, { backgroundColor: "#0A8F5B", marginLeft: 12 }]}
-            onPress={() => setRouteData((p) => ({ ...p, routeCoords: [], routeDistance: 0, routePrice: 0 }))}
+            style={[
+              styles.searchBtn,
+              { backgroundColor: "#0A8F5B", marginLeft: 12 },
+            ]}
+            onPress={() =>
+              setRouteData((p) => ({
+                ...p,
+                routeCoords: [],
+                routeDistance: 0,
+                routePrice: 0,
+              }))
+            }
           >
             <Text style={styles.searchBtnText}>Clear</Text>
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={[styles.bookBtn]} onPress={handleBookRide}>
+        {/* Book Ride Button */}
+        <TouchableOpacity style={styles.bookBtn} onPress={handleBookRide}>
           <Text style={styles.bookText}>Book Ride</Text>
         </TouchableOpacity>
       </View>
 
       {/* Driver Selection Modal */}
       {showDriverSelection && (
-        <View style={{ position: "absolute", top: 200, left: 20, right: 20, backgroundColor: "#fff", padding: 15, borderRadius: 14, zIndex: 10 }}>
-          <Text style={{ fontSize: 16, fontWeight: "700", marginBottom: 10 }}>Choose a Driver</Text>
+        <View
+          style={{
+            position: "absolute",
+            top: 200,
+            left: 20,
+            right: 20,
+            backgroundColor: "#fff",
+            padding: 15,
+            borderRadius: 14,
+            zIndex: 10,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: "700",
+              marginBottom: 10,
+            }}
+          >
+            Choose a Driver
+          </Text>
+
           {drivers.map((d) => (
-            <TouchableOpacity key={d.id} style={{ flexDirection: "row", alignItems: "center", marginVertical: 8 }} onPress={() => handleDriverAccept(d)}>
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "#ccc", marginRight: 12, alignItems: "center", justifyContent: "center" }}>
-                <Text style={{ fontWeight: "600" }}>{d.vehicle[0]}</Text>
+            <TouchableOpacity
+              key={d.id}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginVertical: 8,
+              }}
+              onPress={() => handleDriverAccept(d)}
+            >
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: "#ccc",
+                  marginRight: 12,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ fontWeight: "600" }}>
+                  {d.vehicle[0]}
+                </Text>
               </View>
+
               <View>
                 <Text style={{ fontWeight: "600" }}>{d.name}</Text>
                 <Text>{d.vehicle}</Text>
@@ -394,7 +530,8 @@ export default function HomeScreen() {
           ))}
         </View>
       )}
-       {/* BOTTOM NAV */}
+
+      {/* BOTTOM NAV */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem}>
           <Ionicons name="home-outline" size={24} color="#00996D" />
@@ -422,13 +559,9 @@ export default function HomeScreen() {
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
       </View>
-    
 
-
- {/* OVERLAY */}
-      {sidebarOpen && (
-        <Pressable style={styles.overlay} onPress={closeSidebar} />
-      )}
+      {/* OVERLAY */}
+      {sidebarOpen && <Pressable style={styles.overlay} onPress={closeSidebar} />}
 
       {/* SIDEBAR */}
       <Animated.View style={[styles.sidebar, { left: slideAnim }]}>
@@ -456,107 +589,199 @@ export default function HomeScreen() {
 
         <TouchableOpacity style={styles.sidebarItem}>
           <Ionicons name="log-out-outline" size={22} />
-          <Text style={[styles.sidebarText, { color: "red" }]}>Logout</Text>
+          <Text style={[styles.sidebarText, { color: "red" }]}>
+            Logout
+          </Text>
         </TouchableOpacity>
       </Animated.View>
-
-
-      </View>
-    
+    </View>
   );
 }
 
-// Styles
+// STYLES
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3FDF8" },
-  popupContainer: { position: "absolute", top: 60, left: 20, right: 20, padding: 14, borderRadius: 10, zIndex: 9999, elevation: 9999, alignItems: "center" },
+
+  popupContainer: {
+    position: "absolute",
+    top: 60,
+    left: 20,
+    right: 20,
+    padding: 14,
+    borderRadius: 10,
+    zIndex: 9999,
+    elevation: 9999,
+    alignItems: "center",
+  },
   popupSuccess: { backgroundColor: "#0A8F5B" },
   popupError: { backgroundColor: "#ff4d4d" },
-  popupText: { color: "#fff", fontSize: 15, fontWeight: "600" },
-  webMap: { position: "absolute", top: 0, left: 0, height: "100%", width: "100%", zIndex: 0 },
-  topRow: { position: "absolute", top: 45, left: 0, right: 0, paddingHorizontal: 22, flexDirection: "row", justifyContent: "space-between", zIndex: 5 },
-  menuBtn: { backgroundColor: "white", padding: 12, borderRadius: 12 },
-  bellBtn: { backgroundColor: "white", padding: 12, borderRadius: 12 },
-  infoBox: { position: "absolute", top: 240, left: 20, padding: 14, borderRadius: 10, backgroundColor: "#0A8F5B", zIndex: 5 },
-  infoText: { color: "white", fontSize: 16, fontWeight: "600" },
-  rentalInputContainer: { position: "absolute", top: 330, left: 20, right: 20, backgroundColor: "#fff", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, zIndex: 5 },
-  rentalInput: { padding: 12, top: 8, fontSize: 16 },
-  searchCard: { position: "absolute", top: 390, left: 20, right: 20, backgroundColor: "#E7F8F0", padding: 18, borderRadius: 16, zIndex: 6 },
-  searchBox: { flexDirection: "row", backgroundColor: "#F3FDF8", paddingVertical: 13, paddingHorizontal: 14, borderRadius: 12, marginBottom: 12, alignItems: "center" },
-  searchInput: { flex: 1, marginLeft: 8, fontSize: 16 },
-  searchBtn: { backgroundColor: "#00996D", paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
-  searchBtnText: { color: "#fff", fontWeight: "600" },
-  bookBtn: { backgroundColor: "#0A8F5B", paddingVertical: 14, borderRadius: 12, marginTop: 18 },
-  bookText: { color: "#fff", textAlign: "center", fontSize: 16 },
-   bottomNav: {
+  popupText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+
+  webMap: {
     position: "absolute",
-    bottom: 0,
+    top: 0,
+    left: 0,
+    height: "100%",
+    width: "100%",
+    zIndex: 0,
+  },
+
+  topRow: {
+    position: "absolute",
+    top: 45,
     left: 0,
     right: 0,
-    height: 70,
+    paddingHorizontal: 22,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    zIndex: 5,
+  },
+
+  menuBtn: {
+    backgroundColor: "white",
+    padding: 12,
+    borderRadius: 12,
+  },
+
+  bellBtn: {
+    backgroundColor: "white",
+    padding: 12,
+    borderRadius: 12,
+  },
+
+  infoBox: {
     backgroundColor: "#fff",
+    padding: 10,
+    marginHorizontal: 20,
+    marginTop: 110,
+    borderRadius: 10,
+    zIndex: 10,
+  },
+
+  infoText: { fontSize: 15, fontWeight: "600", color: "#333" },
+
+  rentalInputContainer: {
+    marginTop: 20,
+    marginHorizontal: 20,
+  },
+
+  rentalInput: {
+    backgroundColor: "#fff",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#ccc",
+  },
+
+  searchCard: {
+    position: "absolute",
+    bottom: 90,
+    left: 0,
+    right: 0,
+    marginHorizontal: 20,
+    backgroundColor: "white",
+    padding: 18,
+    borderRadius: 18,
+  },
+
+  searchBox: {
+    flexDirection: "row",
+    backgroundColor: "#F2F2F2",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+
+  searchInput: {
+    flex: 1,
+    marginHorizontal: 10,
+    fontSize: 15,
+  },
+
+  searchBtn: {
+    flex: 1,
+    backgroundColor: "#00996D",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+
+  searchBtnText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+
+  bookBtn: {
+    backgroundColor: "#00996D",
+    padding: 14,
+    borderRadius: 12,
+    marginTop: 12,
+    alignItems: "center",
+  },
+
+  bookText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+
+  bottomNav: {
+    position: "absolute",
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: "#fff",
+    borderRadius: 30,
+    paddingVertical: 12,
     flexDirection: "row",
     justifyContent: "space-around",
-    alignItems: "center",
-    paddingBottom: 10,
+    elevation: 5,
   },
 
   navItem: { alignItems: "center" },
 
-  navText: { color: "#555", fontSize: 12, marginTop: 4 },
-  navTextActive: { color: "#00996D", fontSize: 12, marginTop: 4 },
+  navText: { fontSize: 12, color: "#555" },
 
-  navCenter: { position: "relative" },
+  navTextActive: { fontSize: 12, color: "#00996D", fontWeight: "700" },
+
+  navCenter: { marginTop: -30 },
 
   centerButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: "#00996D",
-    padding: 14,
-    borderRadius: 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
 
   sidebar: {
-  position: "absolute",
-  top: 0,
-  bottom: 0,
-  width: 250,
-  backgroundColor: "#fff",
-  padding: 20,
-  paddingTop: 60,
-  zIndex: 1000,
-  elevation: 20,
-  borderRightWidth: 1,
-  borderColor: "#ddd",
-},
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    width: 250,
+    backgroundColor: "#fff",
+    padding: 20,
+    zIndex: 20,
+  },
 
-overlay: {
-  position: "absolute",
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  backgroundColor: "rgba(0,0,0,0.3)",
-  zIndex: 999,
-},
+  sidebarTitle: { fontSize: 20, fontWeight: "700", marginBottom: 20 },
 
-sidebarTitle: {
-  fontSize: 22,
-  fontWeight: "800",
-  marginBottom: 20,
-},
+  sidebarItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 18,
+  },
 
-sidebarItem: {
-  flexDirection: "row",
-  alignItems: "center",
-  paddingVertical: 12,
-},
-
-sidebarText: {
-  marginLeft: 12,
-  fontSize: 16,
-  fontWeight: "600",
-},
-
-
-
+  sidebarText: { fontSize: 16, marginLeft: 12 },
 });
