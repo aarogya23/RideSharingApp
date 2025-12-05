@@ -5,12 +5,13 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Platform,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 // Popup component
@@ -48,11 +49,35 @@ export default function HomeScreen() {
 
   const priceRates = { Bike: 30, Comfort: 80, Car: 60 };
 
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const slideAnim = useRef(new Animated.Value(-250)).current;
+
   const showPopup = (type, message) => {
     setPopup({ visible: true, type, message });
     setTimeout(() => setPopup({ visible: false, type: "", message: "" }), 2500);
   };
 
+
+  // OPEN SIDEBAR
+    const openSidebar = () => {
+      setSidebarOpen(true);
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: false,
+      }).start();
+    };
+  
+    // CLOSE SIDEBAR
+    const closeSidebar = () => {
+      Animated.timing(slideAnim, {
+        toValue: -250,
+        duration: 250,
+        useNativeDriver: false,
+      }).start(() => setSidebarOpen(false));
+    };
   // Get user location
   useEffect(() => {
     (async () => {
@@ -268,7 +293,7 @@ export default function HomeScreen() {
       {/* Top Bar */}
       <View style={styles.topRow}>
         <Stack.Screen options={{ headerShown: false }} />
-        <TouchableOpacity style={styles.menuBtn}>
+        <TouchableOpacity style={styles.menuBtn} onPress={openSidebar}>
           <Ionicons name="menu" size={22} color="#0A8F5B" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.bellBtn}>
@@ -397,8 +422,46 @@ export default function HomeScreen() {
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    
 
+
+ {/* OVERLAY */}
+      {sidebarOpen && (
+        <Pressable style={styles.overlay} onPress={closeSidebar} />
+      )}
+
+      {/* SIDEBAR */}
+      <Animated.View style={[styles.sidebar, { left: slideAnim }]}>
+        <Text style={styles.sidebarTitle}>Menu</Text>
+
+        <TouchableOpacity style={styles.sidebarItem}>
+          <Ionicons name="home-outline" size={22} />
+          <Text style={styles.sidebarText}>Dashboard</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.sidebarItem}>
+          <Ionicons name="car-outline" size={22} />
+          <Text style={styles.sidebarText}>My Rides</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.sidebarItem}>
+          <Ionicons name="wallet-outline" size={22} />
+          <Text style={styles.sidebarText}>Earnings</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.sidebarItem}>
+          <Ionicons name="person-outline" size={22} />
+          <Text style={styles.sidebarText}>Profile</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.sidebarItem}>
+          <Ionicons name="log-out-outline" size={22} />
+          <Text style={[styles.sidebarText, { color: "red" }]}>Logout</Text>
+        </TouchableOpacity>
+      </Animated.View>
+
+
+      </View>
     
   );
 }
