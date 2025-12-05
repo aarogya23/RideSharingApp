@@ -515,4 +515,48 @@ const styles = StyleSheet.create({
   },
 
 
+  sidebar: {
+  position: "absolute",
+  top: 0,
+  bottom: 0,
+  width: 250,
+  backgroundColor: "#fff",
+  padding: 20,
+  paddingTop: 60,
+  zIndex: 1000,
+  elevation: 20,
+  borderRightWidth: 1,
+  borderColor: "#ddd",
+},
+
+overlay: {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: "rgba(0,0,0,0.3)",
+  zIndex: 999,
+},
+
+sidebarTitle: {
+  fontSize: 22,
+  fontWeight: "800",
+  marginBottom: 20,
+},
+
+sidebarItem: {
+  flexDirection: "row",
+  alignItems: "center",
+  paddingVertical: 12,
+},
+
+sidebarText: {
+  marginLeft: 12,
+  fontSize: 16,
+  fontWeight: "600",
+},
+
+
+
 });
