@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
   infoText: { fontSize: 15, fontWeight: "600", color: "#333" },
 
   rentalInputContainer: {
-    marginTop: 20,
+    marginTop: 310,
     marginHorizontal: 20,
   },
 
@@ -784,4 +784,5 @@ const styles = StyleSheet.create({
   },
 
   sidebarText: { fontSize: 16, marginLeft: 12 },
+  
 });

@@ -24,8 +24,10 @@ export default function DriverDashboard() {
 
   // 🔥 FETCH DATA FROM BACKEND
   useEffect(() => {
-    fetchRides();
-  }, []);
+    if (isOnline) {
+      fetchRides();
+    }
+  }, [isOnline]);
 
   const fetchRides = async () => {
     try {
@@ -92,70 +94,81 @@ export default function DriverDashboard() {
 
       {/* RIDE LIST */}
       <ScrollView contentContainerStyle={styles.scrollArea}>
-        <Text style={styles.sectionTitle}>Recent Rides</Text>
+        {isOnline ? (
+          <>
+            <Text style={styles.sectionTitle}>Recent Rides</Text>
 
-        {loading ? (
-          <Text>Loading rides...</Text>
-        ) : rides.length === 0 ? (
-          <Text>No rides found</Text>
-        ) : (
-          rides.map((ride, i) => (
-            <View key={i} style={styles.card}>
-              <View style={styles.cardLeft}>
-                <Ionicons name="location-sharp" size={22} color="#374151" />
-                <View>
-                  <Text style={styles.cardTitle}>
-                    Destination: {ride.destinationName}
-                  </Text>
-                  <Text style={styles.cardSubtitle}>
-                    Vehicle: {ride.vehicleType}
-                  </Text>
-                  <Text style={styles.cardSubtitle}>
-                    Distance: {ride.distanceKm} km
-                  </Text>
-                  <Text style={styles.cardSubtitle}>Price: Rs {ride.price}</Text>
+            {loading ? (
+              <Text>Loading rides...</Text>
+            ) : rides.length === 0 ? (
+              <Text>No rides found</Text>
+            ) : (
+              rides.map((ride, i) => (
+                <View key={i} style={styles.card}>
+                  <View style={styles.cardLeft}>
+                    <Ionicons name="location-sharp" size={22} color="#374151" />
+                    <View>
+                      <Text style={styles.cardTitle}>
+                        Destination: {ride.destinationName}
+                      </Text>
+                      <Text style={styles.cardSubtitle}>
+                        Vehicle: {ride.vehicleType}
+                      </Text>
+                      <Text style={styles.cardSubtitle}>
+                        Distance: {ride.distanceKm} km
+                      </Text>
+                      <Text style={styles.cardSubtitle}>Price: Rs {ride.price}</Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity>
+                    <Ionicons name="chevron-forward" size={22} color="#d00000" />
+                  </TouchableOpacity>
                 </View>
-              </View>
-
-              <TouchableOpacity>
-                <Ionicons name="chevron-forward" size={22} color="#d00000" />
-              </TouchableOpacity>
-            </View>
-          ))
+              ))
+            )}
+          </>
+        ) : (
+          <Text style={styles.offlineText}>
+            You are offline. Switch online to see ride requests.
+          </Text>
         )}
       </ScrollView>
 
       {/* BOTTOM NAV */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity>
-          <Ionicons name="home-outline" size={22} color="#16a34a" />
-          <Text style={styles.navActive}>Dashboard</Text>
-        </TouchableOpacity>
+<View style={styles.bottomNav}>
+  {/* Home */}
+  <TouchableOpacity style={styles.navItem}>
+    <Ionicons name="home-outline" size={22} color="#16a34a" />
+    <Text style={styles.navActive}>Home</Text>
+  </TouchableOpacity>
 
-        <TouchableOpacity>
-          <Ionicons name="heart-outline" size={22} color="#6b7280" />
-          <Text style={styles.nav}>Favourite</Text>
-        </TouchableOpacity>
+  {/* Favourite */}
+  <TouchableOpacity style={styles.navItem}>
+    <Ionicons name="heart-outline" size={22} color="#6b7280" />
+    <Text style={styles.nav}>Favourite</Text>
+  </TouchableOpacity>
 
-        <TouchableOpacity style={styles.centerIcon}>
-          <Ionicons name="wallet-outline" size={30} color="#fff" />
-        </TouchableOpacity>
+  {/* Center wallet button */}
+  <TouchableOpacity style={styles.centerIcon}>
+    <Ionicons name="wallet-outline" size={28} color="#fff" />
+  </TouchableOpacity>
 
-        <TouchableOpacity>
-          <Ionicons name="pricetag-outline" size={22} color="#6b7280" />
-          <Text style={styles.nav}>Offer</Text>
-        </TouchableOpacity>
+  {/* Offer */}
+  <TouchableOpacity style={styles.navItem}>
+    <Ionicons name="pricetag-outline" size={22} color="#6b7280" />
+    <Text style={styles.nav}>Offer</Text>
+  </TouchableOpacity>
 
-        <TouchableOpacity>
-          <Ionicons name="person-outline" size={22} color="#6b7280" />
-          <Text style={styles.nav}>Profile</Text>
-        </TouchableOpacity>
-      </View>
+  {/* Profile */}
+  <TouchableOpacity style={styles.navItem}>
+    <Ionicons name="person-outline" size={22} color="#6b7280" />
+    <Text style={styles.nav}>Profile</Text>
+  </TouchableOpacity>
+</View>
 
       {/* OVERLAY */}
-      {sidebarOpen && (
-        <Pressable style={styles.overlay} onPress={closeSidebar} />
-      )}
+      {sidebarOpen && <Pressable style={styles.overlay} onPress={closeSidebar} />}
 
       {/* SIDEBAR */}
       <Animated.View style={[styles.sidebar, { left: slideAnim }]}>
@@ -241,6 +254,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     color: "#111827",
   },
+  offlineText: {
+    textAlign: "center",
+    marginTop: 50,
+    fontSize: 16,
+    color: "#6b7280",
+  },
 
   card: {
     flexDirection: "row",
@@ -262,44 +281,49 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     marginTop: 2,
   },
+bottomNav: {
+  flexDirection: "row",
+  justifyContent: "space-around",
+  alignItems: "center",
+  paddingVertical: 8,
+  backgroundColor: "#ffffff",
+  position: "absolute",
+  bottom: 0,
+  width: "100%",
+  elevation: 15,
+  borderTopWidth: 0.3,
+  borderColor: "#e5e7eb",
+},
 
-  bottomNav: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingVertical: 12,
-    backgroundColor: "#ffffff",
-    position: "absolute",
-    bottom: 0,
-    width: "100%",
-    elevation: 15,
-    borderTopWidth: 0.3,
-    borderColor: "#e5e7eb",
-  },
-  nav: {
-    fontSize: 12,
-    color: "#6b7280",
-    textAlign: "center",
-    marginTop: 4,
-  },
-  navActive: {
-    fontSize: 12,
-    color: "#16a34a",
-    fontWeight: "bold",
-    textAlign: "center",
-    marginTop: 4,
-  },
+navItem: {
+  alignItems: "center",
+},
 
-  centerIcon: {
-    backgroundColor: "#10b981",
-    width: 65,
-    height: 65,
-    borderRadius: 32.5,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: -35,
-    elevation: 10,
-  },
+nav: {
+  fontSize: 11,
+  color: "#6b7280",
+  textAlign: "center",
+  marginTop: 2,
+},
+
+navActive: {
+  fontSize: 11,
+  color: "#16a34a",
+  fontWeight: "bold",
+  textAlign: "center",
+  marginTop: 2,
+},
+
+centerIcon: {
+  backgroundColor: "#10b981",
+  width: 55,
+  height: 55,
+  borderRadius: 27.5,
+  justifyContent: "center",
+  alignItems: "center",
+  marginTop: -25,
+  elevation: 10,
+},
 
   sidebar: {
     position: "absolute",
