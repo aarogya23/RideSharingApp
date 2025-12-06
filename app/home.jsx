@@ -574,12 +574,12 @@ export default function HomeScreen() {
 
         <TouchableOpacity style={styles.sidebarItem}>
           <Ionicons name="car-outline" size={22} />
-          <Text style={styles.sidebarText}>My Rides</Text>
+          <Text style={styles.sidebarText}>My Requests</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.sidebarItem}>
           <Ionicons name="wallet-outline" size={22} />
-          <Text style={styles.sidebarText}>Earnings</Text>
+          <Text style={styles.sidebarText}>Spendings</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.sidebarItem}>
