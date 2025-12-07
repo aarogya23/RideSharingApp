@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
+import { useRouter } from "expo-router"; // Use Expo Router for navigation
 import React, { useState } from "react";
 import {
   StyleSheet,
@@ -13,6 +13,7 @@ import {
 import { Stack } from "expo-router";
 
 export default function Login() {
+  const router = useRouter(); // Expo Router hook
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -22,35 +23,39 @@ export default function Login() {
   const [popupMessage, setPopupMessage] = useState("");
   const [popupType, setPopupType] = useState("success"); // success / error
 
-  const navigation = useNavigation();
-
   const handleLogin = async () => {
+    if (!identifier.trim() || !password.trim()) {
+      setPopupType("error");
+      setPopupMessage("Please enter email/phone and password");
+      setPopupVisible(true);
+      setTimeout(() => setPopupVisible(false), 1500);
+      return;
+    }
+
     try {
       const response = await axios.post("http://localhost:8084/api/login", {
-        identifier,
-        password,
+        identifier: identifier.trim(),
+        password: password.trim(),
       });
 
-      // Show success popup
+      // Success: Show popup, then nav to home (pass rideId if needed)
       setPopupType("success");
-      setPopupMessage("Login Successful!");
+      setPopupMessage(`Welcome back! ID: ${response.data.rideId}`);
       setPopupVisible(true);
 
-      // Close popup and redirect
       setTimeout(() => {
         setPopupVisible(false);
-        navigation.navigate("home");
+        router.push("/home"); // Expo Router nav (adjust path as needed)
       }, 1500);
 
     } catch (error) {
       console.log(error);
 
-      // Show error popup
+      // Error: Show popup
       setPopupType("error");
-      setPopupMessage("Invalid login credentials!");
+      setPopupMessage(error.response?.data?.error || "Invalid login credentials!");
       setPopupVisible(true);
 
-      // Auto close popup
       setTimeout(() => {
         setPopupVisible(false);
       }, 1500);
@@ -58,13 +63,17 @@ export default function Login() {
   };
 
   const handleBack = () => {
-    navigation.goBack();
+    router.back(); // Expo Router back
+  };
+
+  const handleSignup = () => {
+    router.push("/signup"); // Nav to signup (assume route exists)
   };
 
   return (
     <View style={styles.container}>
-
       <Stack.Screen options={{ headerShown: false }} />
+
       {/* Popup */}
       {popupVisible && (
         <View style={styles.popupOverlay}>
@@ -80,8 +89,9 @@ export default function Login() {
       )}
 
       {/* Back button */}
-      <TouchableOpacity style={{ marginBottom: 20 }} onPress={handleBack}>
-        <Text style={styles.backText}>‹ Back</Text>
+      <TouchableOpacity style={styles.backContainer} onPress={handleBack}>
+        <Ionicons name="chevron-back" size={24} color="#666" />
+        <Text style={styles.backText}>Back</Text>
       </TouchableOpacity>
 
       <Text style={styles.title}>
@@ -93,6 +103,8 @@ export default function Login() {
         style={styles.input}
         value={identifier}
         onChangeText={setIdentifier}
+        keyboardType="email-address" // Better for email/phone
+        autoCapitalize="none"
       />
 
       <View style={styles.passwordContainer}>
@@ -104,7 +116,11 @@ export default function Login() {
           onChangeText={setPassword}
         />
 
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+        <TouchableOpacity 
+          onPress={() => setShowPassword(!showPassword)}
+          style={styles.eyeIcon}
+          activeOpacity={0.7}
+        >
           <Ionicons
             name={showPassword ? "eye" : "eye-off"}
             size={22}
@@ -113,11 +129,11 @@ export default function Login() {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity>
+      <TouchableOpacity style={styles.forgotContainer}>
         <Text style={styles.forgotText}>Forgot password?</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
+      <TouchableOpacity style={styles.button} onPress={handleLogin} activeOpacity={0.8}>
         <Text style={styles.buttonText}>Sign In</Text>
       </TouchableOpacity>
 
@@ -127,25 +143,29 @@ export default function Login() {
         <View style={styles.line} />
       </View>
 
-      <TouchableOpacity style={styles.socialBtn}>
+      <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8}>
         <Ionicons name="logo-google" size={20} color="#DB4437" />
         <Text style={styles.socialText}>Sign in with Google</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.socialBtn}>
+      <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8}>
         <Ionicons name="logo-facebook" size={20} color="#1877F2" />
         <Text style={styles.socialText}>Sign in with Facebook</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.socialBtn}>
+      <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8}>
         <Ionicons name="logo-apple" size={20} color="black" />
         <Text style={styles.socialText}>Sign in with Apple</Text>
       </TouchableOpacity>
 
-      <Text style={styles.bottomText}>
-        Don’t have an account?
-        <Text style={styles.signupText}> Sign Up</Text>
-      </Text>
+      <View style={styles.bottomContainer}>
+        <Text style={styles.bottomText}>
+          Don’t have an account?{" "}
+        </Text>
+        <TouchableOpacity onPress={handleSignup}>
+          <Text style={styles.signupText}>Sign Up</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -155,14 +175,24 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 25,
     backgroundColor: "#fff",
+    justifyContent: "center",
+  },
+  backContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    padding: 10,
   },
   backText: {
     fontSize: 16,
+    color: "#666",
+    marginLeft: 5,
   },
   title: {
     fontSize: 22,
     fontWeight: "600",
     marginBottom: 25,
+    textAlign: "center",
   },
   input: {
     width: "100%",
@@ -187,10 +217,16 @@ const styles = StyleSheet.create({
     height: 50,
     fontSize: 16,
   },
-  forgotText: {
-    textAlign: "right",
-    color: "red",
+  eyeIcon: {
+    padding: 5,
+  },
+  forgotContainer: {
+    alignItems: "flex-end",
     marginBottom: 25,
+  },
+  forgotText: {
+    color: "#FF3B30",
+    fontSize: 16,
   },
   button: {
     backgroundColor: "#1E9F4E",
@@ -231,9 +267,12 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 16,
   },
-  bottomText: {
+  bottomContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
     marginTop: 20,
-    textAlign: "center",
+  },
+  bottomText: {
     fontSize: 16,
   },
   signupText: {
