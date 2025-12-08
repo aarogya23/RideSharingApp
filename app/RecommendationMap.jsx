@@ -41,3 +41,10 @@ export default function RecommendationMap() {
 }
 
 
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20, alignItems: "center", backgroundColor: "#f3f4f6" },
+  title: { fontSize: 22, fontWeight: "700", marginTop: 20 },
+  backBtn: { position: "absolute", top: 50, left: 20 },
+  backText: { fontSize: 16, color: "#16a34a", fontWeight: "600" },
+  placeText: { fontSize: 16, marginVertical: 5 },
+});
