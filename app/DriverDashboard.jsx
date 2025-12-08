@@ -1,9 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
+import * as Location from "expo-location";
 import { Stack } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Linking,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,11 +21,14 @@ export default function DriverDashboard() {
   const [rides, setRides] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [emergencyVisible, setEmergencyVisible] = useState(false);
+  const [location, setLocation] = useState(null);
+  const [loadingLocation, setLoadingLocation] = useState(false);
+
   const slideAnim = useRef(new Animated.Value(-250)).current;
 
   const toggleStatus = () => setIsOnline(!isOnline);
 
-  // 🔥 FETCH DATA FROM BACKEND
   useEffect(() => {
     if (isOnline) {
       fetchRides();
@@ -44,7 +50,7 @@ export default function DriverDashboard() {
     }
   };
 
-  // OPEN SIDEBAR
+  // Open Sidebar
   const openSidebar = () => {
     setSidebarOpen(true);
     Animated.timing(slideAnim, {
@@ -54,7 +60,7 @@ export default function DriverDashboard() {
     }).start();
   };
 
-  // CLOSE SIDEBAR
+  // Close Sidebar
   const closeSidebar = () => {
     Animated.timing(slideAnim, {
       toValue: -250,
@@ -62,6 +68,57 @@ export default function DriverDashboard() {
       useNativeDriver: false,
     }).start(() => setSidebarOpen(false));
   };
+
+  // ---------- EMERGENCY SECTION ----------
+  const emergencyOptions = [
+    {
+      name: "Nearest Hospital",
+      keyword: "hospital",
+      icon: "medkit-outline",
+    },
+    {
+      name: "Nearest Bike/Car Repair",
+      keyword: "mechanic",
+      icon: "car-outline",
+    },
+    {
+      name: "Call Police (100)",
+      type: "phone",
+      phone: "100",
+      icon: "call-outline",
+    },
+    {
+      name: "Call Ambulance (102)",
+      type: "phone",
+      phone: "102",
+      icon: "medical-outline",
+    },
+  ];
+
+  const openEmergencyScreen = async () => {
+    setEmergencyVisible(true);
+    setLoadingLocation(true);
+
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      alert("Permission required to access location");
+      return;
+    }
+
+    let loc = await Location.getCurrentPositionAsync({});
+    setLocation(loc.coords);
+    setLoadingLocation(false);
+  };
+
+  const openMaps = (keyword) => {
+    if (!location) return;
+
+    const url = `https://www.google.com/maps/search/${keyword}/@${location.latitude},${location.longitude},14z`;
+
+    Linking.openURL(url);
+  };
+
+  const callNumber = (phone) => Linking.openURL(`tel:${phone}`);
 
   return (
     <View style={styles.container}>
@@ -78,7 +135,7 @@ export default function DriverDashboard() {
         <View style={{ width: 30 }} />
       </View>
 
-      {/* ONLINE / OFFLINE BUTTON */}
+      {/* ONLINE-OFFLINE */}
       <Pressable
         onPress={toggleStatus}
         android_ripple={{ color: "#ffffff40" }}
@@ -117,12 +174,18 @@ export default function DriverDashboard() {
                       <Text style={styles.cardSubtitle}>
                         Distance: {ride.distanceKm} km
                       </Text>
-                      <Text style={styles.cardSubtitle}>Price: Rs {ride.price}</Text>
+                      <Text style={styles.cardSubtitle}>
+                        Price: Rs {ride.price}
+                      </Text>
                     </View>
                   </View>
 
                   <TouchableOpacity>
-                    <Ionicons name="chevron-forward" size={22} color="#d00000" />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={22}
+                      color="#d00000"
+                    />
                   </TouchableOpacity>
                 </View>
               ))
@@ -135,37 +198,35 @@ export default function DriverDashboard() {
         )}
       </ScrollView>
 
-      {/* BOTTOM NAV */}
-<View style={styles.bottomNav}>
-  {/* Home */}
-  <TouchableOpacity style={styles.navItem}>
-    <Ionicons name="home-outline" size={22} color="#16a34a" />
-    <Text style={styles.navActive}>Home</Text>
-  </TouchableOpacity>
+      {/* --------- BOTTOM NAVIGATION --------- */}
+      <View style={styles.bottomNav}>
+        <TouchableOpacity style={styles.navItem}>
+          <Ionicons name="home-outline" size={22} color="#16a34a" />
+          <Text style={styles.navActive}>Home</Text>
+        </TouchableOpacity>
 
-  {/* Favourite */}
-  <TouchableOpacity style={styles.navItem}>
-    <Ionicons name="heart-outline" size={22} color="#6b7280" />
-    <Text style={styles.nav}>Favourite</Text>
-  </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}>
+          <Ionicons name="heart-outline" size={22} color="#6b7280" />
+          <Text style={styles.nav}>Favourite</Text>
+        </TouchableOpacity>
 
-  {/* Center wallet button */}
-  <TouchableOpacity style={styles.centerIcon}>
-    <Ionicons name="wallet-outline" size={28} color="#fff" />
-  </TouchableOpacity>
+        <TouchableOpacity style={styles.centerIcon}>
+          <Ionicons name="wallet-outline" size={28} color="#fff" />
+        </TouchableOpacity>
 
-  {/* Offer */}
-  <TouchableOpacity style={styles.navItem}>
-    <Ionicons name="pricetag-outline" size={22} color="#6b7280" />
-    <Text style={styles.nav}>Offer</Text>
-  </TouchableOpacity>
+        {/* EMERGENCY BUTTON */}
+        <TouchableOpacity style={styles.navItem} onPress={openEmergencyScreen}>
+          <Ionicons name="alert-circle-outline" size={24} color="red" />
+          <Text style={[styles.nav, { color: "red", fontWeight: "700" }]}>
+            Emergency
+          </Text>
+        </TouchableOpacity>
 
-  {/* Profile */}
-  <TouchableOpacity style={styles.navItem}>
-    <Ionicons name="person-outline" size={22} color="#6b7280" />
-    <Text style={styles.nav}>Profile</Text>
-  </TouchableOpacity>
-</View>
+        <TouchableOpacity style={styles.navItem}>
+          <Ionicons name="person-outline" size={22} color="#6b7280" />
+          <Text style={styles.nav}>Profile</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* OVERLAY */}
       {sidebarOpen && <Pressable style={styles.overlay} onPress={closeSidebar} />}
@@ -199,6 +260,43 @@ export default function DriverDashboard() {
           <Text style={[styles.sidebarText, { color: "red" }]}>Logout</Text>
         </TouchableOpacity>
       </Animated.View>
+
+      {/* ---------- EMERGENCY POPUP ---------- */}
+      <Modal visible={emergencyVisible} transparent animationType="slide">
+        <View style={styles.emergencyContainer}>
+          <View style={styles.emergencyBox}>
+            <Text style={styles.emergencyTitle}>🚨 Emergency Help</Text>
+
+            {loadingLocation ? (
+              <Text style={{ textAlign: "center", marginTop: 20 }}>
+                Getting your location...
+              </Text>
+            ) : (
+              emergencyOptions.map((option, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={styles.emergencyItem}
+                  onPress={() =>
+                    option.type === "phone"
+                      ? callNumber(option.phone)
+                      : openMaps(option.keyword)
+                  }
+                >
+                  <Ionicons name={option.icon} size={24} color="#dc2626" />
+                  <Text style={styles.emergencyText}>{option.name}</Text>
+                </TouchableOpacity>
+              ))
+            )}
+
+            <TouchableOpacity
+              style={styles.closeBtn}
+              onPress={() => setEmergencyVisible(false)}
+            >
+              <Text style={styles.closeBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -281,49 +379,48 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     marginTop: 2,
   },
-bottomNav: {
-  flexDirection: "row",
-  justifyContent: "space-around",
-  alignItems: "center",
-  paddingVertical: 8,
-  backgroundColor: "#ffffff",
-  position: "absolute",
-  bottom: 0,
-  width: "100%",
-  elevation: 15,
-  borderTopWidth: 0.3,
-  borderColor: "#e5e7eb",
-},
 
-navItem: {
-  alignItems: "center",
-},
+  bottomNav: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingVertical: 8,
+    backgroundColor: "#ffffff",
+    position: "absolute",
+    bottom: 0,
+    width: "100%",
+    elevation: 15,
+    borderTopWidth: 0.3,
+    borderColor: "#e5e7eb",
+  },
 
-nav: {
-  fontSize: 11,
-  color: "#6b7280",
-  textAlign: "center",
-  marginTop: 2,
-},
+  navItem: {
+    alignItems: "center",
+  },
+  nav: {
+    fontSize: 11,
+    color: "#6b7280",
+    textAlign: "center",
+    marginTop: 2,
+  },
+  navActive: {
+    fontSize: 11,
+    color: "#16a34a",
+    fontWeight: "bold",
+    textAlign: "center",
+    marginTop: 2,
+  },
 
-navActive: {
-  fontSize: 11,
-  color: "#16a34a",
-  fontWeight: "bold",
-  textAlign: "center",
-  marginTop: 2,
-},
-
-centerIcon: {
-  backgroundColor: "#10b981",
-  width: 55,
-  height: 55,
-  borderRadius: 27.5,
-  justifyContent: "center",
-  alignItems: "center",
-  marginTop: -25,
-  elevation: 10,
-},
+  centerIcon: {
+    backgroundColor: "#10b981",
+    width: 55,
+    height: 55,
+    borderRadius: 27.5,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: -25,
+    elevation: 10,
+  },
 
   sidebar: {
     position: "absolute",
@@ -360,5 +457,49 @@ centerIcon: {
     left: 0,
     backgroundColor: "#00000060",
     zIndex: 998,
+  },
+
+  // EMERGENCY STYLES
+  emergencyContainer: {
+    flex: 1,
+    backgroundColor: "#00000080",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emergencyBox: {
+    width: "85%",
+    backgroundColor: "#fff",
+    padding: 25,
+    borderRadius: 16,
+  },
+  emergencyTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  emergencyItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 15,
+    borderBottomWidth: 0.4,
+    borderColor: "#ccc",
+  },
+  emergencyText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  closeBtn: {
+    marginTop: 20,
+    backgroundColor: "#dc2626",
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  closeBtnText: {
+    color: "#fff",
+    textAlign: "center",
+    fontWeight: "700",
+    fontSize: 15,
   },
 });
