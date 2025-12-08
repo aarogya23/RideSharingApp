@@ -30,27 +30,21 @@ export default function DriverDashboard() {
   const toggleStatus = () => setIsOnline(!isOnline);
 
   useEffect(() => {
-    if (isOnline) {
-      fetchRides();
-    }
+    if (isOnline) fetchRides();
   }, [isOnline]);
 
   const fetchRides = async () => {
     try {
       const response = await axios.get("http://localhost:8084/api/ride/all");
-      if (Array.isArray(response.data)) {
-        setRides(response.data);
-      } else {
-        setRides([]);
-      }
+      setRides(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.log("Error fetching data:", error);
+      console.log("Error fetching rides:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Open Sidebar
+  // Sidebar
   const openSidebar = () => {
     setSidebarOpen(true);
     Animated.timing(slideAnim, {
@@ -59,8 +53,6 @@ export default function DriverDashboard() {
       useNativeDriver: false,
     }).start();
   };
-
-  // Close Sidebar
   const closeSidebar = () => {
     Animated.timing(slideAnim, {
       toValue: -250,
@@ -69,30 +61,12 @@ export default function DriverDashboard() {
     }).start(() => setSidebarOpen(false));
   };
 
-  // ---------- EMERGENCY SECTION ----------
+  // Emergency options
   const emergencyOptions = [
-    {
-      name: "Nearest Hospital",
-      keyword: "hospital",
-      icon: "medkit-outline",
-    },
-    {
-      name: "Nearest Bike/Car Repair",
-      keyword: "mechanic",
-      icon: "car-outline",
-    },
-    {
-      name: "Call Police (100)",
-      type: "phone",
-      phone: "100",
-      icon: "call-outline",
-    },
-    {
-      name: "Call Ambulance (102)",
-      type: "phone",
-      phone: "102",
-      icon: "medical-outline",
-    },
+    { name: "Nearest Hospital", keyword: "hospital", icon: "medkit-outline" },
+    { name: "Nearest Bike/Car Repair", keyword: "mechanic", icon: "car-outline" },
+    { name: "Call Police (100)", type: "phone", phone: "100", icon: "call-outline" },
+    { name: "Call Ambulance (102)", type: "phone", phone: "102", icon: "medical-outline" },
   ];
 
   const openEmergencyScreen = async () => {
@@ -102,6 +76,7 @@ export default function DriverDashboard() {
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") {
       alert("Permission required to access location");
+      setLoadingLocation(false);
       return;
     }
 
@@ -111,10 +86,12 @@ export default function DriverDashboard() {
   };
 
   const openMaps = (keyword) => {
-    if (!location) return;
+    if (!location) {
+      alert("Location not available yet!");
+      return;
+    }
 
     const url = `https://www.google.com/maps/search/${keyword}/@${location.latitude},${location.longitude},14z`;
-
     Linking.openURL(url);
   };
 
@@ -131,22 +108,18 @@ export default function DriverDashboard() {
         </TouchableOpacity>
 
         <Text style={styles.headerText}>Dashboard</Text>
-
         <View style={{ width: 30 }} />
       </View>
 
-      {/* ONLINE-OFFLINE */}
+      {/* ONLINE/OFFLINE STATUS */}
       <Pressable
         onPress={toggleStatus}
-        android_ripple={{ color: "#ffffff40" }}
         style={[
           styles.statusBtn,
           { backgroundColor: isOnline ? "#16a34a" : "#dc2626" },
         ]}
       >
-        <Text style={styles.statusBtnText}>
-          {isOnline ? "ONLINE" : "OFFLINE"}
-        </Text>
+        <Text style={styles.statusBtnText}>{isOnline ? "ONLINE" : "OFFLINE"}</Text>
       </Pressable>
 
       {/* RIDE LIST */}
@@ -154,7 +127,6 @@ export default function DriverDashboard() {
         {isOnline ? (
           <>
             <Text style={styles.sectionTitle}>Recent Rides</Text>
-
             {loading ? (
               <Text>Loading rides...</Text>
             ) : rides.length === 0 ? (
@@ -174,18 +146,11 @@ export default function DriverDashboard() {
                       <Text style={styles.cardSubtitle}>
                         Distance: {ride.distanceKm} km
                       </Text>
-                      <Text style={styles.cardSubtitle}>
-                        Price: Rs {ride.price}
-                      </Text>
+                      <Text style={styles.cardSubtitle}>Price: Rs {ride.price}</Text>
                     </View>
                   </View>
-
                   <TouchableOpacity>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={22}
-                      color="#d00000"
-                    />
+                    <Ionicons name="chevron-forward" size={22} color="#d00000" />
                   </TouchableOpacity>
                 </View>
               ))
@@ -198,30 +163,25 @@ export default function DriverDashboard() {
         )}
       </ScrollView>
 
-      {/* --------- BOTTOM NAVIGATION --------- */}
+      {/* BOTTOM NAV */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem}>
           <Ionicons name="home-outline" size={22} color="#16a34a" />
           <Text style={styles.navActive}>Home</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.navItem}>
           <Ionicons name="heart-outline" size={22} color="#6b7280" />
           <Text style={styles.nav}>Favourite</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.centerIcon}>
           <Ionicons name="wallet-outline" size={28} color="#fff" />
         </TouchableOpacity>
-
-        {/* EMERGENCY BUTTON */}
         <TouchableOpacity style={styles.navItem} onPress={openEmergencyScreen}>
           <Ionicons name="alert-circle-outline" size={24} color="red" />
           <Text style={[styles.nav, { color: "red", fontWeight: "700" }]}>
             Emergency
           </Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.navItem}>
           <Ionicons name="person-outline" size={22} color="#6b7280" />
           <Text style={styles.nav}>Profile</Text>
@@ -234,34 +194,29 @@ export default function DriverDashboard() {
       {/* SIDEBAR */}
       <Animated.View style={[styles.sidebar, { left: slideAnim }]}>
         <Text style={styles.sidebarTitle}>Menu</Text>
-
         <TouchableOpacity style={styles.sidebarItem}>
           <Ionicons name="home-outline" size={22} />
           <Text style={styles.sidebarText}>Dashboard</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.sidebarItem}>
           <Ionicons name="car-outline" size={22} />
           <Text style={styles.sidebarText}>My Rides</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.sidebarItem}>
           <Ionicons name="wallet-outline" size={22} />
           <Text style={styles.sidebarText}>Earnings</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.sidebarItem}>
           <Ionicons name="person-outline" size={22} />
           <Text style={styles.sidebarText}>Profile</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.sidebarItem}>
           <Ionicons name="log-out-outline" size={22} />
           <Text style={[styles.sidebarText, { color: "red" }]}>Logout</Text>
         </TouchableOpacity>
       </Animated.View>
 
-      {/* ---------- EMERGENCY POPUP ---------- */}
+      {/* EMERGENCY MODAL */}
       <Modal visible={emergencyVisible} transparent animationType="slide">
         <View style={styles.emergencyContainer}>
           <View style={styles.emergencyBox}>
@@ -303,7 +258,6 @@ export default function DriverDashboard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f3f4f6" },
-
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -313,193 +267,32 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     elevation: 3,
   },
-  menuBtn: {
-    width: 35,
-    height: 35,
-    backgroundColor: "#d1fae5",
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 6,
-  },
-  headerText: {
-    flex: 1,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-
-  statusBtn: {
-    alignSelf: "center",
-    marginTop: 15,
-    paddingVertical: 10,
-    paddingHorizontal: 40,
-    borderRadius: 30,
-    elevation: 2,
-  },
-  statusBtnText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-
-  scrollArea: {
-    padding: 20,
-    paddingBottom: 120,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    marginBottom: 12,
-    color: "#111827",
-  },
-  offlineText: {
-    textAlign: "center",
-    marginTop: 50,
-    fontSize: 16,
-    color: "#6b7280",
-  },
-
-  card: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    backgroundColor: "#fff",
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 12,
-    elevation: 2,
-  },
+  menuBtn: { width: 35, height: 35, backgroundColor: "#d1fae5", justifyContent: "center", alignItems: "center", borderRadius: 6 },
+  headerText: { flex: 1, textAlign: "center", fontSize: 18, fontWeight: "600" },
+  statusBtn: { alignSelf: "center", marginTop: 15, paddingVertical: 10, paddingHorizontal: 40, borderRadius: 30, elevation: 2 },
+  statusBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  scrollArea: { padding: 20, paddingBottom: 120 },
+  sectionTitle: { fontSize: 17, fontWeight: "700", marginBottom: 12, color: "#111827" },
+  offlineText: { textAlign: "center", marginTop: 50, fontSize: 16, color: "#6b7280" },
+  card: { flexDirection: "row", justifyContent: "space-between", backgroundColor: "#fff", padding: 14, borderRadius: 12, marginBottom: 12, elevation: 2 },
   cardLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  cardSubtitle: {
-    fontSize: 12,
-    color: "#6b7280",
-    marginTop: 2,
-  },
-
-  bottomNav: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingVertical: 8,
-    backgroundColor: "#ffffff",
-    position: "absolute",
-    bottom: 0,
-    width: "100%",
-    elevation: 15,
-    borderTopWidth: 0.3,
-    borderColor: "#e5e7eb",
-  },
-
-  navItem: {
-    alignItems: "center",
-  },
-  nav: {
-    fontSize: 11,
-    color: "#6b7280",
-    textAlign: "center",
-    marginTop: 2,
-  },
-  navActive: {
-    fontSize: 11,
-    color: "#16a34a",
-    fontWeight: "bold",
-    textAlign: "center",
-    marginTop: 2,
-  },
-
-  centerIcon: {
-    backgroundColor: "#10b981",
-    width: 55,
-    height: 55,
-    borderRadius: 27.5,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: -25,
-    elevation: 10,
-  },
-
-  sidebar: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    width: 250,
-    backgroundColor: "#fff",
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    elevation: 30,
-    zIndex: 999,
-  },
-  sidebarTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 20,
-  },
-  sidebarItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 12,
-  },
-  sidebarText: {
-    fontSize: 16,
-    color: "#111",
-  },
-
-  overlay: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    right: 0,
-    left: 0,
-    backgroundColor: "#00000060",
-    zIndex: 998,
-  },
-
-  // EMERGENCY STYLES
-  emergencyContainer: {
-    flex: 1,
-    backgroundColor: "#00000080",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  emergencyBox: {
-    width: "85%",
-    backgroundColor: "#fff",
-    padding: 25,
-    borderRadius: 16,
-  },
-  emergencyTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  emergencyItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    gap: 15,
-    borderBottomWidth: 0.4,
-    borderColor: "#ccc",
-  },
-  emergencyText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  closeBtn: {
-    marginTop: 20,
-    backgroundColor: "#dc2626",
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  closeBtnText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "700",
-    fontSize: 15,
-  },
+  cardTitle: { fontSize: 15, fontWeight: "600", color: "#111827" },
+  cardSubtitle: { fontSize: 12, color: "#6b7280", marginTop: 2 },
+  bottomNav: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingVertical: 8, backgroundColor: "#ffffff", position: "absolute", bottom: 0, width: "100%", elevation: 15, borderTopWidth: 0.3, borderColor: "#e5e7eb" },
+  navItem: { alignItems: "center" },
+  nav: { fontSize: 11, color: "#6b7280", textAlign: "center", marginTop: 2 },
+  navActive: { fontSize: 11, color: "#16a34a", fontWeight: "bold", textAlign: "center", marginTop: 2 },
+  centerIcon: { backgroundColor: "#10b981", width: 55, height: 55, borderRadius: 27.5, justifyContent: "center", alignItems: "center", marginTop: -25, elevation: 10 },
+  sidebar: { position: "absolute", top: 0, bottom: 0, width: 250, backgroundColor: "#fff", paddingTop: 60, paddingHorizontal: 20, elevation: 30, zIndex: 999 },
+  sidebarTitle: { fontSize: 20, fontWeight: "700", marginBottom: 20 },
+  sidebarItem: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 },
+  sidebarText: { fontSize: 16, color: "#111" },
+  overlay: { position: "absolute", top: 0, bottom: 0, right: 0, left: 0, backgroundColor: "#00000060", zIndex: 998 },
+  emergencyContainer: { flex: 1, backgroundColor: "#00000080", justifyContent: "center", alignItems: "center" },
+  emergencyBox: { width: "85%", backgroundColor: "#fff", padding: 25, borderRadius: 16 },
+  emergencyTitle: { fontSize: 20, fontWeight: "700", textAlign: "center", marginBottom: 20 },
+  emergencyItem: { flexDirection: "row", alignItems: "center", paddingVertical: 12, gap: 15, borderBottomWidth: 0.4, borderColor: "#ccc" },
+  emergencyText: { fontSize: 16, fontWeight: "600" },
+  closeBtn: { marginTop: 20, backgroundColor: "#dc2626", paddingVertical: 10, borderRadius: 8 },
+  closeBtnText: { color: "#fff", textAlign: "center", fontWeight: "700", fontSize: 15 },
 });
