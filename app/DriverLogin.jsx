@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage"; // <-- import AsyncStorage
 
 export default function DriverLogin() {
   const router = useRouter();
@@ -43,25 +44,29 @@ export default function DriverLogin() {
         }),
       });
 
-      const text = await res.text();
-
+      const data = await res.json(); // parse JSON instead of text
+      console.log(data);
       if (!res.ok) {
-        setError(text || "Login failed");
+        setError(data.error || "Login failed");
         setLoading(false);
         return;
       }
+
+      // ===== Store driver data in AsyncStorage =====
+      await AsyncStorage.setItem("driver", JSON.stringify(data.driver));
 
       // Login success
       setSuccessMessage("Login Successful 🎉");
       setLoading(false);
 
-      // Redirect to DriverDashboard after 2 seconds
+      // Redirect to DriverDashboard after 1 second
       setTimeout(() => {
         setSuccessMessage("");
         router.replace("/DriverDashboard");
-      }, 2000);
+      }, 1000);
 
     } catch (err) {
+      console.log(err);
       setError("Network or server error.");
       setLoading(false);
     }
@@ -103,10 +108,7 @@ export default function DriverLogin() {
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        {successMessage ? (
-          <Text style={styles.success}>{successMessage}</Text>
-        ) : null}
+        {successMessage ? <Text style={styles.success}>{successMessage}</Text> : null}
 
         <TouchableOpacity
           style={styles.submit}

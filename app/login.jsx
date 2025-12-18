@@ -1,86 +1,129 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
-import { useRouter } from "expo-router"; // Use Expo Router for navigation
-import React, { useState } from "react";
+import * as Facebook from "expo-auth-session/providers/facebook";
+import * as Google from "expo-auth-session/providers/google";
+import { Stack, useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
-import { Stack } from "expo-router";
+WebBrowser.maybeCompleteAuthSession();
+
+const BASE_URL = "http://localhost:8084"; // 🔴 CHANGE TO YOUR PC IP
 
 export default function Login() {
-  const router = useRouter(); // Expo Router hook
+  const router = useRouter();
+
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // Popup state
   const [popupVisible, setPopupVisible] = useState(false);
   const [popupMessage, setPopupMessage] = useState("");
-  const [popupType, setPopupType] = useState("success"); // success / error
+  const [popupType, setPopupType] = useState("success");
+
+  /* ================= GOOGLE AUTH ================= */
+  const [googleRequest, googleResponse, googlePromptAsync] =
+    Google.useAuthRequest({
+      clientId: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+    });
+
+  useEffect(() => {
+    if (googleResponse?.type === "success") {
+      handleSocialLogin("google", googleResponse.authentication.accessToken);
+    }
+  }, [googleResponse]);
+
+  /* ================= FACEBOOK AUTH ================= */
+  const [fbRequest, fbResponse, fbPromptAsync] =
+    Facebook.useAuthRequest({
+      clientId: "YOUR_FACEBOOK_APP_ID",
+    });
+
+  useEffect(() => {
+    if (fbResponse?.type === "success") {
+      handleSocialLogin("facebook", fbResponse.authentication.accessToken);
+    }
+  }, [fbResponse]);
+
+  /* ================= COMMON FUNCTIONS ================= */
+
+  const showPopup = (message, type = "success") => {
+    setPopupMessage(message);
+    setPopupType(type);
+    setPopupVisible(true);
+    setTimeout(() => setPopupVisible(false), 1500);
+  };
 
   const handleLogin = async () => {
     if (!identifier.trim() || !password.trim()) {
-      setPopupType("error");
-      setPopupMessage("Please enter email/phone and password");
-      setPopupVisible(true);
-      setTimeout(() => setPopupVisible(false), 1500);
+      showPopup("Please enter credentials", "error");
       return;
     }
 
     try {
-      const response = await axios.post("http://localhost:8084/api/login", {
-        identifier: identifier.trim(),
-        password: password.trim(),
+      const res = await axios.post(`${BASE_URL}/api/login`, {
+        identifier,
+        password,
       });
 
-      // Success: Show popup, then nav to home (pass rideId if needed)
-      setPopupType("success");
-      setPopupMessage(`Welcome back! ID: ${response.data.rideId}`);
-      setPopupVisible(true);
+      console.log("USER FROM API:", res.data.user);
+      await AsyncStorage.setItem("user", JSON.stringify(res.data.user));
 
-      setTimeout(() => {
-        setPopupVisible(false);
-        router.push("/home"); // Expo Router nav (adjust path as needed)
-      }, 1500);
+      showPopup("Login successful 🎉");
+      setTimeout(() => router.replace("/home"), 1200);
 
-    } catch (error) {
-      console.log(error);
-
-      // Error: Show popup
-      setPopupType("error");
-      setPopupMessage(error.response?.data?.error || "Invalid login credentials!");
-      setPopupVisible(true);
-
-      setTimeout(() => {
-        setPopupVisible(false);
-      }, 1500);
+    } catch (err) {
+      showPopup(
+        err.response?.data?.error || "Login failed",
+        "error"
+      );
     }
   };
 
-  const handleBack = () => {
-    router.back(); // Expo Router back
-  };
+  const handleSocialLogin = async (provider, token) => {
+    try {
+      const res = await axios.post(`${BASE_URL}/api/social-login`, {
+        provider,
+        token,
+      });
 
-  const handleSignup = () => {
-    router.push("/signup"); // Nav to signup (assume route exists)
+      await AsyncStorage.setItem("user", JSON.stringify(res.data.user));
+
+      showPopup(`${provider} login successful 🎉`);
+      setTimeout(() => router.replace("/home"), 1200);
+
+    } catch (err) {
+      showPopup("Social login failed", "error");
+    }
   };
 
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Popup */}
+      {/* ================= BACK BUTTON ================= */}
+      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <Ionicons name="chevron-back" size={26} color="#333" />
+        <Text style={styles.backText}>Back</Text>
+      </TouchableOpacity>
+
+      {/* ================= POPUP ================= */}
       {popupVisible && (
         <View style={styles.popupOverlay}>
           <View
             style={[
               styles.popupBox,
-              popupType === "success" ? styles.successBox : styles.errorBox,
+              popupType === "success"
+                ? styles.successBox
+                : styles.errorBox,
             ]}
           >
             <Text style={styles.popupText}>{popupMessage}</Text>
@@ -88,39 +131,25 @@ export default function Login() {
         </View>
       )}
 
-      {/* Back button */}
-      <TouchableOpacity style={styles.backContainer} onPress={handleBack}>
-        <Ionicons name="chevron-back" size={24} color="#666" />
-        <Text style={styles.backText}>Back</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.title}>
-        Sign in with your email or phone number
-      </Text>
+      <Text style={styles.title}>Sign In</Text>
 
       <TextInput
-        placeholder="Email or Phone Number"
+        placeholder="Email or Username"
         style={styles.input}
         value={identifier}
         onChangeText={setIdentifier}
-        keyboardType="email-address" // Better for email/phone
         autoCapitalize="none"
       />
 
       <View style={styles.passwordContainer}>
         <TextInput
-          placeholder="Enter Your Password"
+          placeholder="Password"
           secureTextEntry={!showPassword}
           style={styles.passwordInput}
           value={password}
           onChangeText={setPassword}
         />
-
-        <TouchableOpacity 
-          onPress={() => setShowPassword(!showPassword)}
-          style={styles.eyeIcon}
-          activeOpacity={0.7}
-        >
+        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
           <Ionicons
             name={showPassword ? "eye" : "eye-off"}
             size={22}
@@ -129,79 +158,68 @@ export default function Login() {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.forgotContainer}>
-        <Text style={styles.forgotText}>Forgot password?</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.button} onPress={handleLogin} activeOpacity={0.8}>
+      <TouchableOpacity style={styles.button} onPress={handleLogin}>
         <Text style={styles.buttonText}>Sign In</Text>
       </TouchableOpacity>
 
+      {/* ================= DIVIDER ================= */}
       <View style={styles.dividerContainer}>
         <View style={styles.line} />
         <Text style={styles.orText}>or</Text>
         <View style={styles.line} />
       </View>
 
-      <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8}>
+      {/* ================= GOOGLE ================= */}
+      <TouchableOpacity
+        style={styles.socialBtn}
+        disabled={!googleRequest}
+        onPress={() => googlePromptAsync()}
+      >
         <Ionicons name="logo-google" size={20} color="#DB4437" />
-        <Text style={styles.socialText}>Sign in with Google</Text>
+        <Text style={styles.socialText}>Continue with Google</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8}>
+      {/* ================= FACEBOOK ================= */}
+      <TouchableOpacity
+        style={styles.socialBtn}
+        disabled={!fbRequest}
+        onPress={() => fbPromptAsync()}
+      >
         <Ionicons name="logo-facebook" size={20} color="#1877F2" />
-        <Text style={styles.socialText}>Sign in with Facebook</Text>
+        <Text style={styles.socialText}>Continue with Facebook</Text>
       </TouchableOpacity>
-
-      <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8}>
-        <Ionicons name="logo-apple" size={20} color="black" />
-        <Text style={styles.socialText}>Sign in with Apple</Text>
-      </TouchableOpacity>
-
-      <View style={styles.bottomContainer}>
-        <Text style={styles.bottomText}>
-          Don’t have an account?{" "}
-        </Text>
-        <TouchableOpacity onPress={handleSignup}>
-          <Text style={styles.signupText}>Sign Up</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
 
+/* ================= STYLES ================= */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 25,
     backgroundColor: "#fff",
-    justifyContent: "center",
   },
-  backContainer: {
+  backBtn: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 20,
-    padding: 10,
   },
   backText: {
     fontSize: 16,
-    color: "#666",
     marginLeft: 5,
   },
   title: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: "600",
-    marginBottom: 25,
+    marginBottom: 30,
     textAlign: "center",
   },
   input: {
-    width: "100%",
     padding: 15,
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 10,
     marginBottom: 20,
-    fontSize: 16,
   },
   passwordContainer: {
     flexDirection: "row",
@@ -210,30 +228,17 @@ const styles = StyleSheet.create({
     borderColor: "#ccc",
     borderRadius: 10,
     paddingHorizontal: 15,
-    marginBottom: 8,
+    marginBottom: 25,
   },
   passwordInput: {
     flex: 1,
     height: 50,
-    fontSize: 16,
-  },
-  eyeIcon: {
-    padding: 5,
-  },
-  forgotContainer: {
-    alignItems: "flex-end",
-    marginBottom: 25,
-  },
-  forgotText: {
-    color: "#FF3B30",
-    fontSize: 16,
   },
   button: {
     backgroundColor: "#1E9F4E",
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
-    marginBottom: 25,
   },
   buttonText: {
     color: "#fff",
@@ -243,7 +248,7 @@ const styles = StyleSheet.create({
   dividerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 25,
+    marginVertical: 25,
   },
   line: {
     flex: 1,
@@ -257,8 +262,8 @@ const styles = StyleSheet.create({
   socialBtn: {
     flexDirection: "row",
     alignItems: "center",
-    borderColor: "#ccc",
     borderWidth: 1,
+    borderColor: "#ccc",
     padding: 14,
     borderRadius: 10,
     marginBottom: 12,
@@ -267,36 +272,21 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 16,
   },
-  bottomContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 20,
-  },
-  bottomText: {
-    fontSize: 16,
-  },
-  signupText: {
-    color: "#1E9F4E",
-    fontWeight: "600",
-  },
-
-  /* --- POPUP STYLES --- */
   popupOverlay: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.3)",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.3)",
     zIndex: 999,
   },
   popupBox: {
     padding: 25,
     borderRadius: 12,
     minWidth: "70%",
-    alignItems: "center",
   },
   successBox: {
     backgroundColor: "#D4F8D4",

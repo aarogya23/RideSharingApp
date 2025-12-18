@@ -12,7 +12,7 @@ export default function DriverRideMap() {
     destLat,
     destLon,
     userName,
-    userPhone, // pass the user's phone
+    userPhone, // pass user's phone number
     destinationName,
     distanceKm,
     price,
@@ -21,11 +21,11 @@ export default function DriverRideMap() {
   const pickup = [Number(userLat), Number(userLon)];
   const destination = [Number(destLat), Number(destLon)];
 
-  const [routeCoords, setRouteCoords] = useState([]); // route from pickup -> destination
-  const [driverRouteCoords, setDriverRouteCoords] = useState([]); // route from driver -> pickup
+  const [routeCoords, setRouteCoords] = useState([]); // pickup -> destination
+  const [driverRouteCoords, setDriverRouteCoords] = useState([]); // driver -> pickup
   const [showDriverRoute, setShowDriverRoute] = useState(false);
 
-  // 🔹 FETCH ROUTE FROM PICKUP TO DESTINATION (always show)
+  // 🔹 FETCH ROUTE FROM PICKUP TO DESTINATION
   useEffect(() => {
     const fetchRoute = async () => {
       try {
@@ -47,7 +47,7 @@ export default function DriverRideMap() {
   // 🔹 ACCEPT RIDE -> SHOW DRIVER ROUTE TO PICKUP
   const handleAcceptRide = async () => {
     try {
-      // Example: assume driver starts near the pickup location (can replace with real location)
+      // Example: driver starts a bit away from pickup
       const driverStart = [pickup[0] - 0.01, pickup[1] - 0.01];
 
       const url = `https://router.project-osrm.org/route/v1/driving/${driverStart[1]},${driverStart[0]};${pickup[1]},${pickup[0]}?overview=full&geometries=geojson`;
@@ -57,7 +57,7 @@ export default function DriverRideMap() {
       if (data.routes?.length) {
         const coords = data.routes[0].geometry.coordinates.map((c) => [c[1], c[0]]);
         setDriverRouteCoords(coords);
-        setShowDriverRoute(true); // trigger driver route to show
+        setShowDriverRoute(true);
         Alert.alert("Ride Accepted", "Route to user pickup is now shown on map!");
       }
     } catch (err) {
@@ -65,14 +65,25 @@ export default function DriverRideMap() {
     }
   };
 
+  // 🔹 CALL USER
   const handleCallUser = () => {
     if (!userPhone) return Alert.alert("Error", "User phone not available");
     Linking.openURL(`tel:${userPhone}`);
   };
 
+  // 🔹 MESSAGE USER -> navigate to /message.jsx
   const handleMessageUser = () => {
-    if (!userPhone) return Alert.alert("Error", "User phone not available");
-    Linking.openURL(`sms:${userPhone}`);
+    router.push({
+      pathname: "/message", // message.jsx page
+      params: {
+        userName,
+        userPhone,
+        pickupLat: pickup[0],
+        pickupLon: pickup[1],
+        destinationLat: destination[0],
+        destinationLon: destination[1],
+      },
+    });
   };
 
   // 🔹 LEAFLET MAP FOR WEB
@@ -103,12 +114,12 @@ export default function DriverRideMap() {
           <MapContainer center={pickup} zoom={14} style={{ height: "100%", width: "100%" }}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-            {/* Driver route to pickup */}
+            {/* Driver -> Pickup route */}
             {showDriverRoute && driverRouteCoords.length > 0 && (
               <>
                 <Polyline positions={driverRouteCoords} color="orange" />
                 <Marker position={driverRouteCoords[0]} icon={driverIcon}>
-                  <Popup>Driver Starting Location</Popup>
+                  <Popup>Driver Start</Popup>
                 </Marker>
                 <Marker position={driverRouteCoords[driverRouteCoords.length - 1]} icon={pickupIcon}>
                   <Popup>Pickup Location</Popup>
@@ -119,7 +130,7 @@ export default function DriverRideMap() {
             {/* Pickup -> Destination route */}
             {routeCoords.length > 0 && <Polyline positions={routeCoords} color="blue" />}
 
-            {/* Destination marker */}
+            {/* Destination */}
             <Marker position={destination} icon={destIcon}>
               <Popup>
                 <b>Destination</b>
@@ -179,30 +190,11 @@ export default function DriverRideMap() {
 /* ================= STYLES ================= */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3FDF8" },
-  header: {
-    position: "absolute",
-    top: 40,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
+  header: { position: "absolute", top: 40, left: 0, right: 0, zIndex: 10, paddingHorizontal: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   headerTitle: { fontSize: 18, fontWeight: "700" },
   mapWrapper: { position: "absolute", top: 0, left: 0, height: "100%", width: "100%" },
   nativePlaceholder: { flex: 1, alignItems: "center", justifyContent: "center" },
-  infoCard: {
-    position: "absolute",
-    bottom: 30,
-    left: 20,
-    right: 20,
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 16,
-    elevation: 10,
-  },
+  infoCard: { position: "absolute", bottom: 30, left: 20, right: 20, backgroundColor: "#fff", padding: 16, borderRadius: 16, elevation: 10 },
   name: { fontSize: 16, fontWeight: "700", marginBottom: 4 },
   price: { fontSize: 16, fontWeight: "700", color: "#16a34a", marginTop: 4 },
   acceptBtn: { marginTop: 12, backgroundColor: "#0A8F5B", paddingVertical: 12, borderRadius: 10 },

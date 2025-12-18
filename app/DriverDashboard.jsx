@@ -1,7 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import * as Location from "expo-location";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
+
+
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -121,44 +124,49 @@ export default function DriverDashboard() {
       >
         <Text style={styles.statusBtnText}>{isOnline ? "ONLINE" : "OFFLINE"}</Text>
       </Pressable>
-
-      {/* RIDE LIST */}
-      <ScrollView contentContainerStyle={styles.scrollArea}>
+  {/* RIDES */}
+      <ScrollView contentContainerStyle={styles.scroll}>
         {isOnline ? (
-          <>
-            <Text style={styles.sectionTitle}>Recent Rides</Text>
-            {loading ? (
-              <Text>Loading rides...</Text>
-            ) : rides.length === 0 ? (
-              <Text>No rides found</Text>
-            ) : (
-              rides.map((ride, i) => (
-                <View key={i} style={styles.card}>
-                  <View style={styles.cardLeft}>
-                    <Ionicons name="location-sharp" size={22} color="#374151" />
-                    <View>
-                      <Text style={styles.cardTitle}>
-                        Destination: {ride.destinationName}
-                      </Text>
-                      <Text style={styles.cardSubtitle}>
-                        Vehicle: {ride.vehicleType}
-                      </Text>
-                      <Text style={styles.cardSubtitle}>
-                        Distance: {ride.distanceKm} km
-                      </Text>
-                      <Text style={styles.cardSubtitle}>Price: Rs {ride.price}</Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity>
-                    <Ionicons name="chevron-forward" size={22} color="#d00000" />
-                  </TouchableOpacity>
+          loading ? (
+            <Text>Loading rides...</Text>
+          ) : rides.length === 0 ? (
+            <Text>No rides found</Text>
+          ) : (
+            rides.map((ride, i) => (
+              <View key={i} style={styles.card}>
+                <View>
+                  <Text style={styles.title}>{ride.userName}</Text>
+                  <Text>Destination: {ride.destinationName}</Text>
+                  <Text>Distance: {ride.distanceKm} km</Text>
+                  <Text>Price: Rs {ride.price}</Text>
                 </View>
-              ))
-            )}
-          </>
+
+                {/* 👉 GO TO MAP */}
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push({
+                      pathname: "/DriverRideMap",
+                      params: {
+                        userLat: ride.userLat,
+                        userLon: ride.userLon,
+                        destLat: ride.destLat,
+                        destLon: ride.destLon,
+                        userName: ride.userName,
+                        destinationName: ride.destinationName,
+                        distanceKm: ride.distanceKm,
+                        price: ride.price,
+                      },
+                    })
+                  }
+                >
+                  <Ionicons name="chevron-forward" size={24} color="#dc2626" />
+                </TouchableOpacity>
+              </View>
+            ))
+          )
         ) : (
           <Text style={styles.offlineText}>
-            You are offline. Switch online to see ride requests.
+            Go online to see ride requests
           </Text>
         )}
       </ScrollView>
@@ -208,12 +216,32 @@ export default function DriverDashboard() {
         </TouchableOpacity>
         <TouchableOpacity style={styles.sidebarItem}>
           <Ionicons name="person-outline" size={22} />
-          <Text style={styles.sidebarText}>Profile</Text>
+          <TouchableOpacity
+  style={styles.sidebarItem}
+  onPress={() => {
+    closeSidebar();
+    router.push("/Profilepage");
+  }}
+>
+
+  <Text style={styles.sidebarText}>Profile</Text>
+</TouchableOpacity>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.sidebarItem}>
-          <Ionicons name="log-out-outline" size={22} />
+        <TouchableOpacity
+          style={styles.sidebarItem}
+          onPress={async () => {
+            try {
+              await AsyncStorage.removeItem("driver"); // Clear saved login
+              router.replace("/login"); // Navigate to login page
+            } catch (err) {
+              console.log("Logout error:", err);
+            }
+          }}
+        >
+          <Ionicons name="log-out-outline" size={22} color="red" />
           <Text style={[styles.sidebarText, { color: "red" }]}>Logout</Text>
         </TouchableOpacity>
+
       </Animated.View>
 
       {/* EMERGENCY MODAL */}

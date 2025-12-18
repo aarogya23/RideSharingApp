@@ -2,6 +2,10 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { Stack } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
+
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+
 import {
   ActivityIndicator,
   Alert,
@@ -54,10 +58,16 @@ export default function HomeScreen() {
   const [driverRoute, setDriverRoute] = useState([]);
   const [showDriverSelection, setShowDriverSelection] = useState(false);
 
+  const [user, setUser] = useState(null);
+
+
   const priceRates = { Bike: 30, Comfort: 80, Car: 60 };
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const slideAnim = useRef(new Animated.Value(-250)).current;
+
+
+  
 
   const showPopup = (type, message) => {
     setPopup({ visible: true, type, message });
@@ -114,6 +124,24 @@ export default function HomeScreen() {
       routePrice: dist ? parseFloat((dist * rate).toFixed(2)) : 0,
     }));
   }, [vehicleType, routeData.routeDistance]);
+
+
+
+  useEffect(() => {
+  const loadUser = async () => {
+    try {
+      const storedUser = await AsyncStorage.getItem("user");
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
+    } catch (err) {
+      console.log("Error loading user:", err);
+    }
+  };
+
+  loadUser();
+}, []);
+
 
   // Load dummy drivers
   const loadNearbyDrivers = () => {
@@ -228,18 +256,65 @@ export default function HomeScreen() {
     }
   };
 
-  // Book ride
-  const handleBookRide = () => {
-    if (!routeData.routeDistance || routeData.routeDistance <= 0) {
-      Alert.alert("Search a destination first");
-      return;
+  const handleBookRide = async () => {
+  if (!routeData.routeDistance || routeData.routeDistance <= 0) {
+    Alert.alert("Search a destination first");
+    return;
+  }
+
+  if (!routeData.routePrice || routeData.routePrice <= 0) {
+    Alert.alert("Price cannot be 0");
+    return;
+  }
+
+  if (!routeData.userLocation || routeData.routeCoords.length === 0) {
+    Alert.alert("Location data not ready");
+    return;
+  }
+
+  try {
+    const [userLat, userLon] = routeData.userLocation;
+    const destCoord = routeData.routeCoords[routeData.routeCoords.length - 1];
+    const [destLat, destLon] = destCoord;
+
+ const payload = {
+  userName: user?.name,   // 🔥 THIS IS THE KEY
+  userId: user?.id,
+  vehicleType,
+  distanceKm: routeData.routeDistance,
+  price: routeData.routePrice,
+  destinationName: routeData.input,
+  userLat,
+  userLon,
+  destLat,
+  destLon,
+};
+
+
+    const response = await fetch("http://localhost:8084/api/rides/save", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data);
     }
-    if (!routeData.routePrice || routeData.routePrice <= 0) {
-      Alert.alert("Price cannot be 0");
-      return;
-    }
+
+    showPopup("success", "Ride booked successfully 🚕");
     setShowDriverSelection(true);
-  };
+
+    console.log("Ride saved:", data);
+  } catch (error) {
+    console.log("Save ride error:", error);
+    showPopup("error", "Failed to book ride");
+  }
+};
+
 
   // Map component (WEB ONLY)
   let MapComponent = null;
