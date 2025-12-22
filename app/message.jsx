@@ -20,6 +20,9 @@ export default function MessagePage() {
   const [messages, setMessages] = useState([]);
   const [animValue] = useState(new Animated.Value(1));
 
+  // For editing
+  const [editingMessageId, setEditingMessageId] = useState(null);
+
   /* ================= GET MESSAGES ================= */
   const fetchMessages = async () => {
     try {
@@ -50,59 +53,93 @@ export default function MessagePage() {
     fetchMessages();
   }, []);
 
-  /* ================= SEND MESSAGE ================= */
+  /* ================= SEND / UPDATE MESSAGE ================= */
   const sendMessage = async () => {
     if (message.trim() === "") {
       Alert.alert("Validation", "Please write a message");
       return;
     }
 
-    const payload = {
-      driverName: userName,
-      sender: "driver",
-      content: message,
-    };
+    if (editingMessageId) {
+      // === UPDATE EXISTING MESSAGE ===
+      const payload = { content: message };
 
-    try {
-      const response = await fetch(
-        "http://localhost:8084/api/messages/send",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+      try {
+        const response = await fetch(
+          `http://localhost:8084/api/messages/${editingMessageId}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          Alert.alert("Error", errorText);
+          return;
         }
-      );
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        Alert.alert("Error", errorText);
-        return;
+        // Update locally
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === editingMessageId
+              ? { ...msg, text: message, sender: "driver" }
+              : msg
+          )
+        );
+
+        setMessage("");
+        setEditingMessageId(null); // Reset editing mode
+      } catch (error) {
+        Alert.alert("Error", "Failed to update message");
+        console.log(error);
       }
+    } else {
+      // === SEND NEW MESSAGE ===
+      const payload = {
+        driverName: userName,
+        sender: "driver",
+        content: message,
+      };
 
-      const result = await response.json();
+      try {
+        const response = await fetch(
+          "http://localhost:8084/api/messages/send",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }
+        );
 
-      // Small animation reset
-      animValue.setValue(0);
+        if (!response.ok) {
+          const errorText = await response.text();
+          Alert.alert("Error", errorText);
+          return;
+        }
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: result.data.id.toString(),
-          text: result.data.content,
-          sender: "driver",
-        },
-      ]);
+        const result = await response.json();
 
-      setMessage("");
+        // Small animation reset
+        animValue.setValue(0);
 
-      Animated.spring(animValue, {
-        toValue: 1,
-        friction: 6,
-        useNativeDriver: true,
-      }).start();
-    } catch (error) {
-      Alert.alert("Error", "Failed to send message");
-      console.log(error);
+        setMessages((prev) => [
+          ...prev,
+          { id: result.data.id.toString(), text: result.data.content, sender: "driver" },
+        ]);
+
+        setMessage("");
+
+        Animated.spring(animValue, {
+          toValue: 1,
+          friction: 6,
+          useNativeDriver: true,
+        }).start();
+      } catch (error) {
+        Alert.alert("Error", "Failed to send message");
+        console.log(error);
+      }
     }
   };
 
@@ -111,27 +148,44 @@ export default function MessagePage() {
     const isLast = index === messages.length - 1;
 
     return (
-      <Animated.View
-        style={[
-          styles.messageBubble,
-          item.sender === "driver"
-            ? styles.driverBubble
-            : styles.userBubble,
-          isLast && {
-            transform: [{ scale: animValue }],
-            opacity: animValue,
-          },
-        ]}
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: item.sender === "driver" ? "flex-end" : "flex-start",
+          alignItems: "center",
+          marginVertical: 4,
+        }}
       >
-        <Text
+        {/* Edit icon outside driver bubble */}
+        {item.sender === "driver" && (
+          <TouchableOpacity
+            style={{ marginRight: 8 }}
+            onPress={() => {
+              setEditingMessageId(item.id);
+              setMessage(item.text); // Load message text into input
+            }}
+          >
+            <Ionicons name="create-outline" size={20} color="#0A8F5B" />
+          </TouchableOpacity>
+        )}
+
+        <Animated.View
           style={[
-            styles.messageText,
-            item.sender === "driver" && { color: "#fff" },
+            styles.messageBubble,
+            item.sender === "driver" ? styles.driverBubble : styles.userBubble,
+            isLast && { transform: [{ scale: animValue }], opacity: animValue },
           ]}
         >
-          {item.text}
-        </Text>
-      </Animated.View>
+          <Text
+            style={[styles.messageText, item.sender === "driver" && { color: "#fff" }]}
+          >
+            {item.text}
+          </Text>
+        </Animated.View>
+
+        {/* Empty space for alignment of user messages */}
+        {item.sender !== "driver" && <View style={{ width: 28 }} />}
+      </View>
     );
   };
 
@@ -166,7 +220,7 @@ export default function MessagePage() {
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
-          placeholder="Type a message..."
+          placeholder={editingMessageId ? "Edit your message..." : "Type a message..."}
           value={message}
           onChangeText={setMessage}
         />
@@ -180,7 +234,6 @@ export default function MessagePage() {
 }
 
 /* ================= STYLES ================= */
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3F3F3" },
 
@@ -217,7 +270,6 @@ const styles = StyleSheet.create({
     maxWidth: "80%",
     padding: 10,
     borderRadius: 10,
-    marginVertical: 4,
   },
 
   driverBubble: {
