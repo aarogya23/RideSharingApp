@@ -1,0 +1,21 @@
+
+Date: 2025-12-15
+Project: Ride Sharing Application
+
+Today I worked on the backend and frontend integration for the ride-sharing application. The main updates and tasks I completed are:
+
+1. Implemented PUT mapping in the React Native frontend to allow profile updates.
+2. Updated the backend API to handle saving rides with:
+   - Vehicle type
+   - Route distance
+   - Calculated price
+   - Destination name
+   - User location (latitude & longitude)
+   - Destination location (latitude & longitude)
+3. Modified the RideDto and Ridedestination model to include both user and destination coordinates.
+4. Updated the RideController to save rides including all necessary location data.
+5. Ensured proper validations for vehicle type, distance, and price before saving rides.
+6. Connected the React Native frontend to send all ride details to the backend API.
+7. Tested saving rides and verifying that both user and destination coordinates are properly stored in the database.
+
+This update improves the ride-booking functionality by allowing accurate tracking and storing of both the user's current location and destination location, which will be useful for route calculation and driver assignment.
