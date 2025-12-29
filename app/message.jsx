@@ -5,13 +5,15 @@ import {
   Alert,
   Animated,
   FlatList,
-  Platform,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
+
+
+const BASE_URL = "http://localhost:8084"; // Local host IP from spring boot
 
 export default function MessagePage() {
   const { userName, userPhone } = useLocalSearchParams();
@@ -20,32 +22,31 @@ export default function MessagePage() {
   const [messages, setMessages] = useState([]);
   const [animValue] = useState(new Animated.Value(1));
 
-  // For editing
   const [editingMessageId, setEditingMessageId] = useState(null);
+  const [menuVisibleId, setMenuVisibleId] = useState(null);
 
   /* ================= GET MESSAGES ================= */
   const fetchMessages = async () => {
     try {
-      const response = await fetch(
-        `http://localhost:8084/api/messages/${userName}`
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch messages");
-      }
+      const response = await fetch(`${BASE_URL}/api/messages/${userName}`);
+      if (!response.ok) throw new Error("Failed to fetch messages");
 
       const result = await response.json();
-
       const formattedMessages = result.messages.map((msg) => ({
         id: msg.id.toString(),
         text: msg.content,
         sender: msg.sender,
+        createdAt: msg.createdAt,
       }));
+
+      formattedMessages.sort(
+        (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+      );
 
       setMessages(formattedMessages);
     } catch (error) {
-      console.log(error);
       Alert.alert("Error", "Unable to load messages");
+      console.log(error);
     }
   };
 
@@ -60,17 +61,15 @@ export default function MessagePage() {
       return;
     }
 
+    // UPDATE
     if (editingMessageId) {
-      // === UPDATE EXISTING MESSAGE ===
-      const payload = { content: message };
-
       try {
         const response = await fetch(
-          `http://localhost:8084/api/messages/${editingMessageId}`,
+          `${BASE_URL}/api/messages/${editingMessageId}`,
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ content: message }),
           }
         );
 
@@ -80,38 +79,33 @@ export default function MessagePage() {
           return;
         }
 
-        // Update locally
         setMessages((prev) =>
           prev.map((msg) =>
-            msg.id === editingMessageId
-              ? { ...msg, text: message, sender: "driver" }
+            msg.id === editingMessageId.toString()
+              ? { ...msg, text: message }
               : msg
           )
         );
 
         setMessage("");
-        setEditingMessageId(null); // Reset editing mode
+        setEditingMessageId(null);
       } catch (error) {
         Alert.alert("Error", "Failed to update message");
         console.log(error);
       }
-    } else {
-      // === SEND NEW MESSAGE ===
-      const payload = {
-        driverName: userName,
-        sender: "driver",
-        content: message,
-      };
-
+    }
+    // SEND
+    else {
       try {
-        const response = await fetch(
-          "http://localhost:8084/api/messages/send",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          }
-        );
+        const response = await fetch(`${BASE_URL}/api/messages/send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            driverName: userName,
+            sender: "driver",
+            content: message,
+          }),
+        });
 
         if (!response.ok) {
           const errorText = await response.text();
@@ -120,13 +114,16 @@ export default function MessagePage() {
         }
 
         const result = await response.json();
-
-        // Small animation reset
         animValue.setValue(0);
 
         setMessages((prev) => [
           ...prev,
-          { id: result.data.id.toString(), text: result.data.content, sender: "driver" },
+          {
+            id: result.data.id.toString(),
+            text: result.data.content,
+            sender: "driver",
+            createdAt: new Date().toISOString(),
+          },
         ]);
 
         setMessage("");
@@ -143,6 +140,46 @@ export default function MessagePage() {
     }
   };
 
+  //lets add deletemapping api in thi application
+
+/* ================= DELETE MESSAGE ================= */
+  const deleteMessage = (id) => {
+    Alert.alert(
+      "Delete Message",
+      "Are you sure you want to delete this message?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              console.log("Deleting message id:", id);
+              const response = await fetch(`${BASE_URL}/api/messages/${id}`, {
+                method: "DELETE",
+              });
+
+              if (!response.ok) {
+                const errorText = await response.text();
+                Alert.alert("Error", errorText);
+                return;
+              }
+
+              setMessages((prev) =>
+                prev.filter((msg) => msg.id !== id.toString())
+              );
+              setMenuVisibleId(null);
+            } catch (error) {
+              Alert.alert("Error", "Failed to delete message");
+              console.log(error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+
   /* ================= RENDER MESSAGE ================= */
   const renderItem = ({ item, index }) => {
     const isLast = index === messages.length - 1;
@@ -151,40 +188,71 @@ export default function MessagePage() {
       <View
         style={{
           flexDirection: "row",
-          justifyContent: item.sender === "driver" ? "flex-end" : "flex-start",
-          alignItems: "center",
+          justifyContent:
+            item.sender === "driver" ? "flex-end" : "flex-start",
           marginVertical: 4,
         }}
       >
-        {/* Edit icon outside driver bubble */}
         {item.sender === "driver" && (
-          <TouchableOpacity
-            style={{ marginRight: 8 }}
-            onPress={() => {
-              setEditingMessageId(item.id);
-              setMessage(item.text); // Load message text into input
-            }}
-          >
-            <Ionicons name="create-outline" size={20} color="#0A8F5B" />
-          </TouchableOpacity>
+          <View style={{ marginRight: 6 }}>
+            <TouchableOpacity
+              onPress={() =>
+                setMenuVisibleId(menuVisibleId === item.id ? null : item.id)
+              }
+            >
+              <Ionicons name="ellipsis-vertical" size={18} color="#0A8F5B" />
+            </TouchableOpacity>
+
+            {menuVisibleId === item.id && (
+              <View style={styles.menu}>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setEditingMessageId(item.id);
+                    setMessage(item.text);
+                    setMenuVisibleId(null);
+                  }}
+                >
+                  <Text>Edit</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => deleteMessage(item.id)}
+                >
+                  <Text style={{ color: "red" }}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         )}
 
-        <Animated.View
-          style={[
-            styles.messageBubble,
-            item.sender === "driver" ? styles.driverBubble : styles.userBubble,
-            isLast && { transform: [{ scale: animValue }], opacity: animValue },
-          ]}
-        >
-          <Text
-            style={[styles.messageText, item.sender === "driver" && { color: "#fff" }]}
+        <View>
+          <Animated.View
+            style={[
+              styles.messageBubble,
+              item.sender === "driver"
+                ? styles.driverBubble
+                : styles.userBubble,
+              { transform: [{ scale: animValue }] },
+            ]}
           >
-            {item.text}
-          </Text>
-        </Animated.View>
+            <Text
+              style={[
+                styles.messageText,
+                item.sender === "driver" && { color: "#fff" },
+              ]}
+            >
+              {item.text}
+            </Text>
+          </Animated.View>
 
-        {/* Empty space for alignment of user messages */}
-        {item.sender !== "driver" && <View style={{ width: 28 }} />}
+          {isLast && (
+            <Text style={styles.timeText}>
+              {new Date(item.createdAt).toLocaleString()}
+            </Text>
+          )}
+        </View>
       </View>
     );
   };
@@ -193,40 +261,39 @@ export default function MessagePage() {
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* ===== HEADER ===== */}
+      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
 
-        <View style={styles.headerTextContainer}>
+        <View style={{ marginLeft: 12 }}>
           <Text style={styles.headerTitle}>{userName}</Text>
           <Text style={styles.headerSubTitle}>{userPhone}</Text>
         </View>
-
-        <Ionicons name="call-outline" size={22} color="#fff" />
       </View>
 
-      {/* ===== CHAT ===== */}
+      {/* CHAT */}
       <FlatList
-        style={styles.chatContainer}
         data={messages}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 16 }}
       />
 
-      {/* ===== INPUT ===== */}
+      {/* INPUT */}
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
-          placeholder={editingMessageId ? "Edit your message..." : "Type a message..."}
+          placeholder={
+            editingMessageId ? "Edit your message..." : "Type a message..."
+          }
           value={message}
           onChangeText={setMessage}
         />
 
         <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
-          <Ionicons name="send" size={22} color="#fff" />
+          <Ionicons name="send" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
     </View>
@@ -236,81 +303,50 @@ export default function MessagePage() {
 /* ================= STYLES ================= */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3F3F3" },
-
   header: {
-    height: Platform.OS === "web" ? 70 : 60,
+    height: 60,
     backgroundColor: "#0A8F5B",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === "web" ? 20 : 0,
   },
-
-  headerTextContainer: { flex: 1, marginLeft: 12 },
-
-  headerTitle: {
-    color: "#fff",
-    fontSize: 17,
-    fontWeight: "700",
-  },
-
-  headerSubTitle: {
-    color: "#E0F2EA",
-    fontSize: 13,
-    marginTop: 2,
-  },
-
-  chatContainer: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-
-  messageBubble: {
-    maxWidth: "80%",
-    padding: 10,
-    borderRadius: 10,
-  },
-
-  driverBubble: {
-    backgroundColor: "#0A8F5B",
-    alignSelf: "flex-end",
-  },
-
-  userBubble: {
-    backgroundColor: "#E0E0E0",
-    alignSelf: "flex-start",
-  },
-
-  messageText: {
-    fontSize: 14,
-    color: "#000",
-  },
-
+  headerTitle: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  headerSubTitle: { color: "#DFF5EC", fontSize: 12 },
+  messageBubble: { maxWidth: "80%", padding: 10, borderRadius: 10 },
+  driverBubble: { backgroundColor: "#0A8F5B" },
+  userBubble: { backgroundColor: "#E0E0E0" },
+  messageText: { fontSize: 14 },
+  timeText: { fontSize: 10, color: "#555", marginTop: 2 },
   inputContainer: {
     flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    padding: 10,
     borderTopWidth: 1,
-    borderTopColor: "#ccc",
+    borderColor: "#ccc",
     backgroundColor: "#fff",
   },
-
   input: {
     flex: 1,
     borderWidth: 1,
     borderColor: "#ccc",
-    borderRadius: 25,
-    paddingHorizontal: 16,
+    borderRadius: 20,
+    paddingHorizontal: 14,
   },
-
   sendBtn: {
     backgroundColor: "#0A8F5B",
     width: 40,
     height: 40,
     borderRadius: 20,
+    marginLeft: 8,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 8,
   },
+  menu: {
+    position: "absolute",
+    top: 18,
+    right: 0,
+    backgroundColor: "#fff",
+    borderRadius: 6,
+    elevation: 4,
+  },
+  menuItem: { padding: 8 },
 });
